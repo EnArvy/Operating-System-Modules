@@ -36,7 +36,8 @@ int main(){
 			pch = strtok(NULL, " \n");
 		}
 		
-		char *execfile,*args[words];
+		char *execfile,*args[words+1];
+		args[words]=NULL;
 		if(words==0) continue;
 		if(words==1){
 			execfile = strtok(command," \n");
