@@ -25,6 +25,8 @@ int main(){
 	while(1){
 		char command[1024];
 		fgets(command,1024,stdin);
+		char commandcopy[1024];
+		strcpy(commandcopy,command);
 
 		char *pch;
 		pch = strtok(command," \n");
@@ -38,34 +40,27 @@ int main(){
 		if(words==0) continue;
 		if(words==1){
 			execfile = strtok(command," \n");
+			args[0]=execfile;
 		}
 		if(words>1){
-			pch = strtok(command," \n");
+			pch = strtok(commandcopy," \n");
 			execfile = pch;
-			int i=0;
+			args[0]=execfile;
+			int i=1;
 			while(pch != NULL){
 				pch = strtok(NULL," \n");
-				if(pch!=NULL)
-				printf("%s\n",pch);
 				args[i] = pch;
 				i++;
 			}
-			// args[i] = NULL;
 		}
-		// printf("%s",args[0]);
 
-		// int process = fork();
-		// if(process==0){	
-		// 	execvp(execfile,args);
-		// }
-		// else{
-		// 	wait(NULL);
-		// }
-
-		// int process = fork();
-		// if(process==0){
-
-		// }
+		int process = fork();
+		if(process==0){	
+			execvp(execfile,args);
+		}
+		else{
+			wait(NULL);
+		}
 	}
 	return 0;
 }
