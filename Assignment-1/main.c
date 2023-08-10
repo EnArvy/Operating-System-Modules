@@ -23,6 +23,7 @@
 // <wctype.h>
 int main(){
 	while(1){
+		printf("\nMTL458>");
 		char command[1024];
 		fgets(command,1024,stdin);
 		char commandcopy[1024];
