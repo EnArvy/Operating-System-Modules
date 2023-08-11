@@ -23,20 +23,22 @@
 // <wctype.h>
 int main(){
 	while(1){
-		printf("\nMTL458>");
+		printf("MTL458>");
 		char command[1024];
 		fgets(command,1024,stdin);
 		char commandcopy[1024];
 		strcpy(commandcopy,command);
 
-		char *pch;
+		//Count words
+		char *pch;//for processing words in sentence
 		pch = strtok(command," \n");
 		int words=0;
 		while (pch != NULL) {
 			words++;
 			pch = strtok(NULL, " \n");
 		}
-		
+
+		//Create args array
 		char *args[words+1];
 		args[words]=NULL;
 		if(words==0) continue;
@@ -55,8 +57,9 @@ int main(){
 		}
 
 		int process = fork();
-		if(process==0){	
-			execvp(args[0],args);
+		if(process==0){
+			if(strcmp(args[0],"ls")||strcmp(args[0],"echo")||strcmp(args[0],"cat")||strcmp(args[0],"sleep"))
+				execvp(args[0],args);
 		}
 		else{
 			wait(NULL);
