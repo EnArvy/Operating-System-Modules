@@ -37,17 +37,15 @@ int main(){
 			pch = strtok(NULL, " \n");
 		}
 		
-		char *execfile,*args[words+1];
+		char *args[words+1];
 		args[words]=NULL;
 		if(words==0) continue;
 		if(words==1){
-			execfile = strtok(command," \n");
-			args[0]=execfile;
+			args[0] = strtok(command," \n");
 		}
 		if(words>1){
 			pch = strtok(commandcopy," \n");
-			execfile = pch;
-			args[0]=execfile;
+			args[0] = pch;
 			int i=1;
 			while(pch != NULL){
 				pch = strtok(NULL," \n");
@@ -58,7 +56,7 @@ int main(){
 
 		int process = fork();
 		if(process==0){	
-			execvp(execfile,args);
+			execvp(args[0],args);
 		}
 		else{
 			wait(NULL);
