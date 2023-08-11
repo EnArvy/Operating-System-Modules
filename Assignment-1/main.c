@@ -24,6 +24,7 @@
 int main(){
 	while(1){
 		printf("MTL458>");
+
 		char command[1024];
 		fgets(command,1024,stdin);
 		char commandcopy[1024];
@@ -58,8 +59,12 @@ int main(){
 
 		int process = fork();
 		if(process==0){
-			if(strcmp(args[0],"ls")||strcmp(args[0],"echo")||strcmp(args[0],"cat")||strcmp(args[0],"sleep"))
+			if(strcmp(args[0],"ls")==0||strcmp(args[0],"echo")==0||strcmp(args[0],"cat")==0||strcmp(args[0],"sleep")==0||strcmp(args[0],"grep")==0){
 				execvp(args[0],args);
+			}
+			else{
+				printf("Command not found\n");
+			}
 		}
 		else{
 			wait(NULL);
