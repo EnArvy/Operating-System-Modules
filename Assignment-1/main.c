@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
 #include<math.h>
@@ -11,6 +11,7 @@
 #include<errno.h>
 #include<unistd.h>
 #include<sys/wait.h>
+#include<linux/limits.h>
 // <fenv.h> - Floating-point environment
 // <float.h> - Limits of floating-point types
 // <inttypes.h> - Format conversion of integer types
@@ -21,6 +22,18 @@
 // <uchar.h> - UTF-16 and UTF-32 character utilities
 // <wchar.h> - Extended multibyte and wide character utilities
 // <wctype.h>
+
+int wordcount(char *command, char *delim){
+	char *pch;//for processing words in sentence
+	pch = strtok(command,delim);
+	int words=0;
+	while (pch != NULL) {
+		words++;
+		pch = strtok(NULL, delim);
+	}
+	return words;
+}
+
 int main(){
 	while(1){
 		printf("MTL458>");
@@ -30,24 +43,16 @@ int main(){
 		char commandcopy[1024];
 		strcpy(commandcopy,command);
 
-		//Count words
-		char *pch;//for processing words in sentence
-		pch = strtok(command," \n");
-		int words=0;
-		while (pch != NULL) {
-			words++;
-			pch = strtok(NULL, " \n");
-		}
-
+		int words = wordcount(command," \n");
+		if(words==0) continue;
 		//Create args array
 		char *args[words+1];
 		args[words]=NULL;
-		if(words==0) continue;
 		if(words==1){
-			args[0] = strtok(command," \n");
+			args[0] = strtok(commandcopy," \n");
 		}
 		if(words>1){
-			pch = strtok(commandcopy," \n");
+			char *pch = strtok(commandcopy," \n");
 			args[0] = pch;
 			int i=1;
 			while(pch != NULL){
@@ -59,11 +64,41 @@ int main(){
 
 		int process = fork();
 		if(process==0){
-			if(strcmp(args[0],"ls")==0||strcmp(args[0],"echo")==0||strcmp(args[0],"cat")==0||strcmp(args[0],"sleep")==0||strcmp(args[0],"grep")==0){
+
+			int found = 0;
+			if(access(args[0],X_OK)==0){
+				found = 1;
+			}
+			else{
+				char path[PATH_MAX],path2[PATH_MAX];
+				strcpy(path,getenv("PATH"));
+				strcpy(path2,path);
+				int pathsize= wordcount(path,":");
+				char paths[pathsize][PATH_MAX];
+				char *pch = strtok(path2,":");
+				strcpy(paths[0],pch);
+				int i=1;
+				while(i!=pathsize){
+					pch = strtok(NULL,":");
+					strcpy(paths[i],pch);
+					i++;
+				}
+				for(int j=0;j!=pathsize;j++){
+					char temp[(int)strlen(paths[j])+1+strlen(args[0])];
+					strcpy(temp,paths[j]);
+					strcat(strcat(temp,"/"),args[0]);
+					if(access(temp,X_OK)==0){
+						found = 1;
+						break;
+					}
+				}
+			}
+			
+			if(found==1){
 				execvp(args[0],args);
 			}
 			else{
-				printf("Command not found\n");
+				printf("Command not found\n");fflush(stdout);
 			}
 		}
 		else{
