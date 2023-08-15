@@ -24,6 +24,7 @@
 // <wctype.h>
 #define max_cmd_length 2048
 
+
 int wordcount(char *command, char *delim){
 	char *pch;
 	pch = strtok(command,delim);
@@ -33,6 +34,14 @@ int wordcount(char *command, char *delim){
 		pch = strtok(NULL, delim);
 	}
 	return words;
+}
+
+int startswith(char *str,const char *prefix){
+	int len = strlen(prefix);
+	for(int i=0;i<len;i++){
+		if(str[i]!=prefix[i]) return 0;
+	}
+	return 1;
 }
 
 int main(){
@@ -48,6 +57,17 @@ int main(){
 		fgets(command,max_cmd_length,stdin);
 		char commandcopy[max_cmd_length];
 		strcpy(commandcopy,command);
+
+		if(startswith(command,"cd")){
+			char path[PATH_MAX];
+			strncpy(path,command+3,strlen(command)-4);
+			chdir(path);
+			continue;
+		};
+		if(startswith(command,"history")){
+			printf("true\n");
+			continue;
+		};
 
 		int words = wordcount(command," \n");
 		if(words==0) continue;
