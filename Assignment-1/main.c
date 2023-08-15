@@ -55,68 +55,77 @@ int main(){
 
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
-		char commandcopy[max_cmd_length];
-		strcpy(commandcopy,command);
 
-		if(startswith(command,"cd")){
-			char path[PATH_MAX];
-			strncpy(path,command+3,strlen(command)-4);
-			chdir(path);
-			continue;
-		};
-		if(startswith(command,"history")){
-			printf("true\n");
-			continue;
-		};
+		char *save_ptr1;
+		char *subcommand = strtok_r(command,"|",&save_ptr1);
+		while(subcommand!=NULL){
 
-		int words = wordcount(command," \n");
-		if(words==0) continue;
-		
-		//Create args array
-		char *args[words+1];
-		char *pch = strtok(commandcopy," \n");
-		args[0] = pch;
-		int i=1;
-		while(pch != NULL){
-			pch = strtok(NULL," \n");
-			args[i] = pch;
-			i++;
-		}
+			char commandcopy[max_cmd_length];
+			strcpy(commandcopy,subcommand);
 
-		int process = fork();
-		if(process==0){
-			int found = 0;
-			if(access(args[0],X_OK)==0){
-				found = 1;
+			if(startswith(subcommand,"cd")){
+				char path[PATH_MAX];
+				strncpy(path,command+3,strlen(command)-4);
+				chdir(path);
+				continue;
+			};
+			if(startswith(subcommand,"history")){
+				printf("true\n");
+				continue;
+			};
+
+			int words = wordcount(subcommand," \n");
+			if(words==0) continue;
+			
+			//Create args array
+			char *args[words+1];
+			char *save_ptr2;
+			char *pch = strtok_r(commandcopy," \n",&save_ptr2);
+			args[0] = pch;
+			int i=1;
+			while(pch != NULL){
+				pch = strtok_r(NULL," \n",&save_ptr2);
+				args[i] = pch;
+				i++;
 			}
-			else{
-				strcpy(PATH_Temp,PATH);
-				char *Pch = strtok(PATH_Temp,":");
-				for(int j=1;j<PATH_size;j++){
-					char temp[PATH_MAX];
-					strcpy(temp,Pch);
-					strcat(temp,"/");
-					strcat(temp,args[0]);
-					if(access(temp,X_OK)==0){
-						found = 1;
-						break;
+
+			int process = fork();
+			if(process==0){
+				int found = 0;
+				if(access(args[0],X_OK)==0){
+					found = 1;
+				}
+				else if(strchr(args[0],'/')==NULL){
+					strcpy(PATH_Temp,PATH);
+					char *save_ptr3;
+					char *Pch = strtok_r(PATH_Temp,":",&save_ptr3);
+					for(int j=1;j<PATH_size;j++){
+						char temp[PATH_MAX];
+						strcpy(temp,Pch);
+						strcat(temp,"/");
+						strcat(temp,args[0]);
+						if(access(temp,X_OK)==0){
+							found = 1;
+							break;
+						}
+						Pch = strtok_r(NULL,":",&save_ptr3);
 					}
-					Pch = strtok(NULL,":");
+				}
+				
+				if(found==1){
+					execvp(args[0],args);
+				}
+				else{
+					printf("Command not found\n");fflush(stdout);
 				}
 			}
-			
-			if(found==1){
-				execvp(args[0],args);
+			else if(process>0){
+				wait(NULL);
 			}
 			else{
-				printf("Command not found\n");fflush(stdout);
+				printf("Error\n");
 			}
-		}
-		else if(process>0){
-			wait(NULL);
-		}
-		else{
-			printf("Error\n");
+			subcommand = strtok_r(NULL,"|",&save_ptr1);
 		}
 	}
 	return 0;
