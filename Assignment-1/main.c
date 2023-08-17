@@ -12,6 +12,9 @@
 #include<unistd.h>
 #include<sys/wait.h>
 #include<linux/limits.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 // <fenv.h> - Floating-point environment
 // <float.h> - Limits of floating-point types
 // <inttypes.h> - Format conversion of integer types
@@ -27,7 +30,9 @@
 
 int wordcount(char *command, char *delim){
 	char *pch;
-	pch = strtok(command,delim);
+	char commandcopy[max_cmd_length];
+	strcpy(commandcopy,command);
+	pch = strtok(commandcopy,delim);
 	int words=0;
 	while (pch != NULL) {
 		words++;
@@ -44,87 +49,96 @@ int startswith(char *str,const char *prefix){
 	return 1;
 }
 
+void createArgs(char **args, char *command){
+	int words = wordcount(command," \n");
+	if(words==0) return;
+	// char *commandcopy;
+	// strcpy(commandcopy,command);
+
+	//Create args array
+	char *save_ptr2;
+	char *pch = strtok_r(command," \n",&save_ptr2);
+	args[0] = pch;
+	int i=1;
+	while(pch != NULL){
+		pch = strtok_r(NULL," \n",&save_ptr2);
+		args[i] = pch;
+		i++;
+	}
+	args[i] = NULL;
+}
+
 int main(){
 	while(1){
-		// fclose(fopen("/tmp/mtl458_pipe.txt", "w"));
 		printf("MTL458>");
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
 
-		char *save_ptr1;
-		char *subcommand = strtok_r(command,"|",&save_ptr1);
-		int pipefd[2];
-		pipe(pipefd);
-		int pipe=0;
 
-		while(subcommand!=NULL){
-			char commandcopy[max_cmd_length];
-			strcpy(commandcopy,subcommand);
+		////////PIPE////////
+		if(strchr(command,'|')!=NULL){
+			char *command1 = strtok(command,"|");
+			char *command2 = strtok(NULL,"|");
 
-			if(startswith(subcommand,"cd")){
-				char path[PATH_MAX];
-				strncpy(path,command+3,strlen(command)-4);
-				chdir(path);
-				subcommand = strtok_r(NULL,"|",&save_ptr1);
-				continue;
-			};
-			if(startswith(subcommand,"history")){
-				FILE *fp = fopen("/tmp/mtl458_pipe.txt","w");
-				fprintf(fp,"History\n");
-				fclose(fp);
-				subcommand = strtok_r(NULL,"|",&save_ptr1);
-				continue;
-			};
+			if(command1 == NULL || command2 == NULL) continue;
 
-			int words = wordcount(subcommand," \n");
-			if(words==0) continue;
-			
-			//Create args array
-			char *args[words+2];
-			char *save_ptr2;
-			char *pch = strtok_r(commandcopy," \n",&save_ptr2);
-			args[0] = pch;
-			int i=1;
-			while(pch != NULL){
-				pch = strtok_r(NULL," \n",&save_ptr2);
-				args[i] = pch;
-				i++;
-			}
-			if(pipe)
-				args[i-1] = "/tmp/mtl458_pipe.txt";
-			args[i] = NULL;
+			char *args1[max_cmd_length],*args2[max_cmd_length];
+			createArgs(args1,command1);
+			createArgs(args2,command2);
 
-			int process = fork();
-			if(process==0){
-					close(pipefd[0]);
-					dup2(pipefd[1],STDOUT_FILENO);
-					execvp(args[0],args);
-			}
-			else if(process>0){
+			int pipefd[2];
+			pipe(pipefd);
+
+			int child1 = fork();
+			if (child1 == 0) {
+				dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
+				close(pipefd[0]);
 				close(pipefd[1]);
-				char readbuf[1024];
-				int bytes_read = 0;
-				wait(NULL);
-				FILE *fp = fopen("/tmp/mtl458_pipe.txt","w");
-				while ((bytes_read = read(pipefd[0], readbuf, sizeof readbuf) > 0)) {
-					fprintf(fp,"%s",readbuf);
-					printf("%s",readbuf);
-				}
-				fclose(fp);
-			}
-			else{
-				printf("Error\n");
+				execvp(args1[0],args1);
 			}
 
-			subcommand = strtok_r(NULL,"|",&save_ptr1);
-			pipe = 1;
+			int child2 = fork();
+			if (child2 == 0) {
+				dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to the pipe read end
+				close(pipefd[0]);
+				close(pipefd[1]);
+				execvp(args2[0],args2);
+			}
+
+			close(pipefd[0]);
+			close(pipefd[1]);
+			waitpid(child1, NULL, 0);
+			waitpid(child2, NULL, 0);
+			continue;
 		}
-		FILE *fp = fopen("/tmp/mtl458_pipe.txt","r");
-		char readbuf[1024];
-		while(fgets(readbuf,1024,fp)!=NULL){
-			printf("%s",readbuf);
+		//////PIPE END//////
+
+
+		if(startswith(command,"cd")){
+			char path[PATH_MAX];
+			strncpy(path,command+3,strlen(command)-4);
+			chdir(path);
+			continue;
+		};
+
+		if(startswith(command,"history")){
+			printf("History\n");
+			continue;
+		};
+
+		char *args[max_cmd_length];
+		createArgs(args,command);
+
+		int process = fork();
+		if(process==0){
+			execvp(args[0],args);
 		}
-		fclose(fp);
+		else if(process>0){
+			wait(NULL);
+		}
+		else{
+			printf("Error\n");
+		}
 	}
 	return 0;
 }
