@@ -45,21 +45,19 @@ int startswith(char *str,const char *prefix){
 }
 
 int main(){
-	char PATH[PATH_MAX],PATH_Temp[PATH_MAX];
-	strcpy(PATH,getenv("PATH"));
-	strcpy(PATH_Temp,PATH);
-	int PATH_size= wordcount(PATH_Temp,":");
-
 	while(1){
+		// fclose(fopen("/tmp/mtl458_pipe.txt", "w"));
 		printf("MTL458>");
-
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
 
 		char *save_ptr1;
 		char *subcommand = strtok_r(command,"|",&save_ptr1);
-		while(subcommand!=NULL){
+		int pipefd[2];
+		pipe(pipefd);
+		int pipe=0;
 
+		while(subcommand!=NULL){
 			char commandcopy[max_cmd_length];
 			strcpy(commandcopy,subcommand);
 
@@ -67,10 +65,14 @@ int main(){
 				char path[PATH_MAX];
 				strncpy(path,command+3,strlen(command)-4);
 				chdir(path);
+				subcommand = strtok_r(NULL,"|",&save_ptr1);
 				continue;
 			};
 			if(startswith(subcommand,"history")){
-				printf("true\n");
+				FILE *fp = fopen("/tmp/mtl458_pipe.txt","w");
+				fprintf(fp,"History\n");
+				fclose(fp);
+				subcommand = strtok_r(NULL,"|",&save_ptr1);
 				continue;
 			};
 
@@ -78,7 +80,7 @@ int main(){
 			if(words==0) continue;
 			
 			//Create args array
-			char *args[words+1];
+			char *args[words+2];
 			char *save_ptr2;
 			char *pch = strtok_r(commandcopy," \n",&save_ptr2);
 			args[0] = pch;
@@ -88,45 +90,41 @@ int main(){
 				args[i] = pch;
 				i++;
 			}
+			if(pipe)
+				args[i-1] = "/tmp/mtl458_pipe.txt";
+			args[i] = NULL;
 
 			int process = fork();
 			if(process==0){
-				int found = 0;
-				if(access(args[0],X_OK)==0){
-					found = 1;
-				}
-				else if(strchr(args[0],'/')==NULL){
-					strcpy(PATH_Temp,PATH);
-					char *save_ptr3;
-					char *Pch = strtok_r(PATH_Temp,":",&save_ptr3);
-					for(int j=1;j<PATH_size;j++){
-						char temp[PATH_MAX];
-						strcpy(temp,Pch);
-						strcat(temp,"/");
-						strcat(temp,args[0]);
-						if(access(temp,X_OK)==0){
-							found = 1;
-							break;
-						}
-						Pch = strtok_r(NULL,":",&save_ptr3);
-					}
-				}
-				
-				if(found==1){
+					close(pipefd[0]);
+					dup2(pipefd[1],STDOUT_FILENO);
 					execvp(args[0],args);
-				}
-				else{
-					printf("Command not found\n");fflush(stdout);
-				}
 			}
 			else if(process>0){
+				close(pipefd[1]);
+				char readbuf[1024];
+				int bytes_read = 0;
 				wait(NULL);
+				FILE *fp = fopen("/tmp/mtl458_pipe.txt","w");
+				while ((bytes_read = read(pipefd[0], readbuf, sizeof readbuf) > 0)) {
+					fprintf(fp,"%s",readbuf);
+					printf("%s",readbuf);
+				}
+				fclose(fp);
 			}
 			else{
 				printf("Error\n");
 			}
+
 			subcommand = strtok_r(NULL,"|",&save_ptr1);
+			pipe = 1;
 		}
+		FILE *fp = fopen("/tmp/mtl458_pipe.txt","r");
+		char readbuf[1024];
+		while(fgets(readbuf,1024,fp)!=NULL){
+			printf("%s",readbuf);
+		}
+		fclose(fp);
 	}
 	return 0;
 }
