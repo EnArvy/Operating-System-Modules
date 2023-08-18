@@ -1,7 +1,8 @@
 #include<stdio.h>
 #include<string.h>
-// #include<stdlib.h>
-// #include<ctype.h>
+#include<stdlib.h>
+#include<ctype.h>
+#include<math.h>
 // #include<assert.h>
 // #include<signal.h>
 // #include<setjmp.h>
@@ -15,6 +16,54 @@
 // #include <fcntl.h>
 
 #define max_cmd_length 2048
+#define INITIAL_CAPACITY 10
+
+typedef struct {
+    char **data;
+	int *id;
+    int size;
+    int capacity;
+} History;
+
+void initHistory(History *history) {
+    history->data = (char **)malloc(INITIAL_CAPACITY * sizeof(char *));
+	history->id = (int *)malloc(INITIAL_CAPACITY * sizeof(int));
+    history->size = 0;
+    history->capacity = INITIAL_CAPACITY;
+}
+
+void addCommand(History *history, const char *input, int id) {
+    if (history->size >= history->capacity) {
+        history->capacity += INITIAL_CAPACITY;
+        history->data = (char **)realloc(history->data, history->capacity * sizeof(char *));
+		history->id = (int *)realloc(history->id, history->capacity * sizeof(int));
+    }
+
+    history->data[history->size] = strdup(input);
+	history->id[history->size] = id;
+    history->size++;
+}
+
+int Digits(int n){
+	int count=0;
+	while(n>0){
+		n/=10;
+		count++;
+	}
+	return count;
+}
+
+void printHistory(const History *history, int n) {
+    int start = (history->size > n) ? history->size - n : 0;
+	if(n==0)start = 0;
+	int digits = Digits(history->size);
+    for (int i = start; i < history->size; i++) {
+		int curDigits = Digits(history->id[i]);
+		for(int j=0;j<digits-curDigits;j++) printf(" ");
+		printf("%d  ",history->id[i]);
+        printf("%s", history->data[i]);
+    }
+}
 
 
 int wordcount(char *command, char *delim){
@@ -55,12 +104,26 @@ void createArgs(char **args, char *command){
 	args[i] = NULL;
 }
 
+int isNumber(char s[]){
+    for (int i = 0; s[i]!= '\n' && s[i]!='\0' && s[i]!=' '; i++){
+        if (isdigit(s[i]) == 0)
+              return 0;
+    }
+    return 1;
+}
+
 int main(){
+	
+	History history;
+	initHistory(&history);
+	int count=1;
+
 	while(1){
 		printf("MTL458>");
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
 
+		addCommand(&history, command, count++);
 
 		////////PIPE////////
 		int pipefd[2];
@@ -105,7 +168,19 @@ int main(){
 		};
 
 		if(startswith(command,"history")){
-			printf("History\n");
+			char *pch = strtok(command," ");
+			pch = strtok(NULL," ");
+			if(pch==NULL){
+				printHistory(&history,0);
+			}
+			else if(isNumber(pch)){
+				int n = atoi(pch);
+				printHistory(&history,n);
+			}
+			else{
+				strchr(pch,'\n')[0]='\0';
+				printf("history: %s: numeric argument required\n",pch);
+			}
 			continue;
 		};
 
