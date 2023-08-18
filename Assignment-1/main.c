@@ -74,46 +74,34 @@ int main(){
 
 
 		////////PIPE////////
+		int pipefd[2];
+		pipe(pipefd);
+		int piping = 0;
+		int pipepid;
 		if(strchr(command,'|')!=NULL){
-			char command1[max_cmd_length];
-			char command2[max_cmd_length];
+			piping = 1;
+			char subcommand[max_cmd_length];
 			char *pch = strtok(command,"|");
-			strcpy(command1,pch);
+			strcpy(subcommand,pch);
 			pch = strtok(NULL,"|");
-			strcpy(command2,pch);
+			strcpy(command,pch);
 
-			if(command1 == NULL || command2 == NULL) continue;
+			if(subcommand == NULL || command == NULL){
+				printf("Error\n");
+				continue;
+			}
 
-			char *args1[max_cmd_length],*args2[max_cmd_length];
-			createArgs(args1,command1);
-			createArgs(args2,command2);
+			char *args[max_cmd_length];
+			createArgs(args,subcommand);
 
-			int pipefd[2];
-			pipe(pipefd);
-
-			int child1 = fork();
-			if (child1 == 0) {
+			pipepid = fork();
+			if (pipepid == 0) {
 				dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
 				close(pipefd[0]);
 				close(pipefd[1]);
-				execvp(args1[0],args1);
-				perror(args1[0]);
+				execvp(args[0],args);
+				perror(args[0]);
 			}
-
-			int child2 = fork();
-			if (child2 == 0) {
-				dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to the pipe read end
-				close(pipefd[0]);
-				close(pipefd[1]);
-				execvp(args2[0],args2);
-				perror(args2[0]);
-			}
-
-			close(pipefd[0]);
-			close(pipefd[1]);
-			waitpid(child1, NULL, 0);
-			waitpid(child2, NULL, 0);
-			continue;
 		}
 		//////PIPE END//////
 
@@ -121,6 +109,7 @@ int main(){
 		if(startswith(command,"cd")){
 			char path[PATH_MAX];
 			strncpy(path,command+3,strlen(command)-4);
+			path[strlen(command)-4]='\0'; //Remove \n from path
 			int status=chdir(path);
 			if(status!=0) perror("cd");
 			continue;
@@ -136,11 +125,20 @@ int main(){
 
 		int process = fork();
 		if(process==0){
+			if(piping){
+				dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to the pipe read end
+				close(pipefd[0]);
+				close(pipefd[1]);
+			}
 			execvp(args[0],args);
 			perror(args[0]);
 		}
 		else if(process>0){
-			wait(NULL);
+			close(pipefd[0]);
+			close(pipefd[1]);
+			if(piping)
+				waitpid(pipepid, NULL, 0);
+			waitpid(process, NULL, 0);
 		}
 		else{
 			printf("Error\n");
