@@ -3,45 +3,36 @@
 #include<stdlib.h>
 #include<ctype.h>
 #include<math.h>
-// #include<assert.h>
-// #include<signal.h>
-// #include<setjmp.h>
-// #include<stdarg.h>
-// #include<errno.h>
 #include<unistd.h>
 #include<sys/wait.h>
 #include<linux/limits.h>
-// #include <sys/types.h>
-// #include <sys/stat.h>
-// #include <fcntl.h>
 
 #define max_cmd_length 2048
 #define INITIAL_CAPACITY 10
 
 typedef struct {
-    char **data;
+	char **data;
 	int *id;
-    int size;
-    int capacity;
+	int size;
+	int capacity;
 } History;
 
 void initHistory(History *history) {
-    history->data = (char **)malloc(INITIAL_CAPACITY * sizeof(char *));
+	history->data = (char **)malloc(INITIAL_CAPACITY * sizeof(char *));
 	history->id = (int *)malloc(INITIAL_CAPACITY * sizeof(int));
-    history->size = 0;
-    history->capacity = INITIAL_CAPACITY;
+	history->size = 0;
+	history->capacity = INITIAL_CAPACITY;
 }
 
 void addCommand(History *history, const char *input, int id) {
-    if (history->size >= history->capacity) {
-        history->capacity += INITIAL_CAPACITY;
-        history->data = (char **)realloc(history->data, history->capacity * sizeof(char *));
+	if (history->size >= history->capacity) {
+		history->capacity += INITIAL_CAPACITY;
+		history->data = (char **)realloc(history->data, history->capacity * sizeof(char *));
 		history->id = (int *)realloc(history->id, history->capacity * sizeof(int));
-    }
-
-    history->data[history->size] = strdup(input);
+	}
+	history->data[history->size] = strdup(input);
 	history->id[history->size] = id;
-    history->size++;
+	history->size++;
 }
 
 int Digits(int n){
@@ -54,15 +45,15 @@ int Digits(int n){
 }
 
 void printHistory(const History *history, int n) {
-    int start = (history->size > n) ? history->size - n : 0;
+	int start = (history->size > n) ? history->size - n : 0;
 	if(n==0)start = 0;
 	int digits = Digits(history->size);
-    for (int i = start; i < history->size; i++) {
+	for (int i = start; i < history->size; i++) {
 		int curDigits = Digits(history->id[i]);
 		for(int j=0;j<digits-curDigits;j++) printf(" ");
 		printf("%d  ",history->id[i]);
-        printf("%s", history->data[i]);
-    }
+		printf("%s", history->data[i]);
+	}
 }
 
 int wordcount(char *command, char *delim){
@@ -104,11 +95,11 @@ void createArgs(char **args, char *command){
 }
 
 int isNumber(char s[]){
-    for (int i = 0; s[i]!= '\n' && s[i]!='\0' && s[i]!=' '; i++){
-        if (isdigit(s[i]) == 0)
-              return 0;
-    }
-    return 1;
+	for (int i = 0; s[i]!= '\n' && s[i]!='\0' && s[i]!=' '; i++){
+		if (isdigit(s[i]) == 0)
+			  return 0;
+	}
+	return 1;
 }
 
 int main(){
@@ -119,7 +110,6 @@ int main(){
 
 	while(1){
 		printf("MTL458>");
-		fflush(stdout);
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
 
@@ -130,7 +120,7 @@ int main(){
 		pipe(pipefd);
 		int piping = 0;
 		int pipepid;
-		int stdout_copy = dup(STDOUT_FILENO);
+		// int stdout_copy = dup(STDOUT_FILENO);
 		if(strchr(command,'|')!=NULL){
 			piping = 1;
 			char subcommand[max_cmd_length];
@@ -184,8 +174,11 @@ int main(){
 					execvp(args[0],args);
 					perror(args[0]);
 					exit(1);
-				// }
-			}
+				}
+				else if(pipepid<0){
+					printf("Error\n");
+				}
+			// }
 		}
 		//////PIPE END//////
 
@@ -197,9 +190,9 @@ int main(){
 			int status=chdir(path);
 			if(status!=0) perror("cd");
 			continue;
-		};
+		}
 
-		if(startswith(command,"history")){
+		else if(startswith(command,"history")){
 			char *pch = strtok(command," ");
 			pch = strtok(NULL," ");
 			if(pch==NULL){
@@ -214,31 +207,33 @@ int main(){
 				printf("history: %s: numeric argument required\n",pch);
 			}
 			continue;
-		};
+		}
 
-		char *args[max_cmd_length];
-		createArgs(args,command);
+		else {
+			char *args[max_cmd_length];
+			createArgs(args,command);
 
-		int process = fork();
-		if(process==0){
-			if(piping){
-				dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to the pipe read end
+			int process = fork();
+			if(process==0){
+				if(piping){
+					dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to the pipe read end
+					close(pipefd[0]);
+					close(pipefd[1]);
+				}
+				execvp(args[0],args);
+				perror(args[0]);
+				exit(1);
+			}
+			else if(process>0){
 				close(pipefd[0]);
 				close(pipefd[1]);
+				if(piping)
+					waitpid(pipepid, NULL, 0);
+				waitpid(process, NULL, 0);
 			}
-			execvp(args[0],args);
-			perror(args[0]);
-			exit(1);
-		}
-		else if(process>0){
-			close(pipefd[0]);
-			close(pipefd[1]);
-			if(piping)
-				waitpid(pipepid, NULL, 0);
-			waitpid(process, NULL, 0);
-		}
-		else{
-			printf("Error\n");
+			else{
+				printf("Error\n");
+			}
 		}
 	}
 	return 0;
