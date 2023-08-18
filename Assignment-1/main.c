@@ -52,12 +52,12 @@ int startswith(char *str,const char *prefix){
 void createArgs(char **args, char *command){
 	int words = wordcount(command," \n");
 	if(words==0) return;
-	// char *commandcopy;
-	// strcpy(commandcopy,command);
+	char *commandcopy;
+	strcpy(commandcopy,command);
 
 	//Create args array
 	char *save_ptr2;
-	char *pch = strtok_r(command," \n",&save_ptr2);
+	char *pch = strtok_r(commandcopy," \n",&save_ptr2);
 	args[0] = pch;
 	int i=1;
 	while(pch != NULL){
