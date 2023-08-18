@@ -65,7 +65,6 @@ void printHistory(const History *history, int n) {
     }
 }
 
-
 int wordcount(char *command, char *delim){
 	char *pch;
 	char commandcopy[max_cmd_length];
@@ -120,6 +119,7 @@ int main(){
 
 	while(1){
 		printf("MTL458>");
+		fflush(stdout);
 		char command[max_cmd_length];
 		fgets(command,max_cmd_length,stdin);
 
@@ -130,6 +130,7 @@ int main(){
 		pipe(pipefd);
 		int piping = 0;
 		int pipepid;
+		int stdout_copy = dup(STDOUT_FILENO);
 		if(strchr(command,'|')!=NULL){
 			piping = 1;
 			char subcommand[max_cmd_length];
@@ -143,16 +144,47 @@ int main(){
 				continue;
 			}
 
-			char *args[max_cmd_length];
-			createArgs(args,subcommand);
+			// if(startswith(subcommand,"cd")){
+			// 	char path[PATH_MAX];
+			// 	strncpy(path,subcommand+3,strlen(subcommand)-4);
+			// 	path[strlen(subcommand)-4]='\0'; //Remove \n from path
+			// 	int status=chdir(path);
+			// 	if(status!=0) perror("cd");
+			// }
 
-			pipepid = fork();
-			if (pipepid == 0) {
-				dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
-				close(pipefd[0]);
-				close(pipefd[1]);
-				execvp(args[0],args);
-				perror(args[0]);
+			// else if(startswith(subcommand,"history")){
+			// 	char *pch = strtok(subcommand," ");
+			// 	pch = strtok(NULL," ");
+			// 	dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
+			// 	close(pipefd[0]);
+			// 	close(pipefd[1]);
+			// 	if(pch==NULL){
+			// 		printHistory(&history,0);
+			// 	}
+			// 	else if(isNumber(pch)){
+			// 		int n = atoi(pch);
+			// 		printHistory(&history,n);
+			// 	}
+			// 	else{
+			// 		strchr(pch,'\n')[0]='\0';
+			// 		printf("history: %s: numeric argument required\n",pch);
+			// 	}
+			// 	// dup2(stdout_copy, STDOUT_FILENO);
+			// }
+
+			// else{
+				char *args[max_cmd_length];
+				createArgs(args,subcommand);
+
+				pipepid = fork();
+				if (pipepid == 0) {
+					dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
+					close(pipefd[0]);
+					close(pipefd[1]);
+					execvp(args[0],args);
+					perror(args[0]);
+					exit(1);
+				// }
 			}
 		}
 		//////PIPE END//////
@@ -196,6 +228,7 @@ int main(){
 			}
 			execvp(args[0],args);
 			perror(args[0]);
+			exit(1);
 		}
 		else if(process>0){
 			close(pipefd[0]);
