@@ -95,6 +95,7 @@ int main(){
 				close(pipefd[0]);
 				close(pipefd[1]);
 				execvp(args1[0],args1);
+				perror(args1[0]);
 			}
 
 			int child2 = fork();
@@ -103,6 +104,7 @@ int main(){
 				close(pipefd[0]);
 				close(pipefd[1]);
 				execvp(args2[0],args2);
+				perror(args2[0]);
 			}
 
 			close(pipefd[0]);
@@ -117,7 +119,8 @@ int main(){
 		if(startswith(command,"cd")){
 			char path[PATH_MAX];
 			strncpy(path,command+3,strlen(command)-4);
-			chdir(path);
+			int status=chdir(path);
+			if(status!=0) perror("cd");
 			continue;
 		};
 
@@ -132,6 +135,7 @@ int main(){
 		int process = fork();
 		if(process==0){
 			execvp(args[0],args);
+			perror(args[0]);
 		}
 		else if(process>0){
 			wait(NULL);
