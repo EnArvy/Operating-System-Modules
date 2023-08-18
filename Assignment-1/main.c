@@ -1,30 +1,19 @@
 #include<stdio.h>
 #include<string.h>
-#include<stdlib.h>
-#include<math.h>
-#include<ctype.h>
-#include<time.h>
-#include<assert.h>
-#include<signal.h>
-#include<setjmp.h>
-#include<stdarg.h>
-#include<errno.h>
+// #include<stdlib.h>
+// #include<ctype.h>
+// #include<assert.h>
+// #include<signal.h>
+// #include<setjmp.h>
+// #include<stdarg.h>
+// #include<errno.h>
 #include<unistd.h>
 #include<sys/wait.h>
 #include<linux/limits.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-// <fenv.h> - Floating-point environment
-// <float.h> - Limits of floating-point types
-// <inttypes.h> - Format conversion of integer types
-// <limits.h>- Ranges of integer types
-// <setjmp.h>- Nonlocal jumps
-// <signal.h> - Signal handling
-// <stdalign.h> - alignas and alignof convenience macros
-// <uchar.h> - UTF-16 and UTF-32 character utilities
-// <wchar.h> - Extended multibyte and wide character utilities
-// <wctype.h>
+// #include <sys/types.h>
+// #include <sys/stat.h>
+// #include <fcntl.h>
+
 #define max_cmd_length 2048
 
 
