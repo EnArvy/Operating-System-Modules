@@ -52,12 +52,10 @@ int startswith(char *str,const char *prefix){
 void createArgs(char **args, char *command){
 	int words = wordcount(command," \n");
 	if(words==0) return;
-	char *commandcopy;
-	strcpy(commandcopy,command);
 
 	//Create args array
 	char *save_ptr2;
-	char *pch = strtok_r(commandcopy," \n",&save_ptr2);
+	char *pch = strtok_r(command," \n",&save_ptr2);
 	args[0] = pch;
 	int i=1;
 	while(pch != NULL){
@@ -77,8 +75,12 @@ int main(){
 
 		////////PIPE////////
 		if(strchr(command,'|')!=NULL){
-			char *command1 = strtok(command,"|");
-			char *command2 = strtok(NULL,"|");
+			char command1[max_cmd_length];
+			char command2[max_cmd_length];
+			char *pch = strtok(command,"|");
+			strcpy(command1,pch);
+			pch = strtok(NULL,"|");
+			strcpy(command2,pch);
 
 			if(command1 == NULL || command2 == NULL) continue;
 
