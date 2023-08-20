@@ -142,6 +142,22 @@ int main(){
 				dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to the pipe write end
 				close(pipefd[0]);
 				close(pipefd[1]);
+				if(startswith(args[0],"history")){
+					if(args[1]==NULL){
+						printHistory(&history,0);
+						exit(0);
+					}
+					else if(isNumber(args[1])){
+						int n = atoi(args[1]);
+						printHistory(&history,n);
+						exit(0);
+					}
+					else{
+						strchr(args[1],'\n')[0]='\0';
+						printf("history: %s: numeric argument required\n",args[1]);
+						exit(1);
+					}
+				}
 				execvp(args[0],args);
 				perror(args[0]);
 				exit(1);
@@ -153,7 +169,12 @@ int main(){
 		//////PIPE END//////
 
 
-		if(startswith(command,"cd")){
+		char *args[max_cmd_length];
+		char commandcopy[max_cmd_length];
+		strcpy(commandcopy,command);
+		createArgs(args,commandcopy);
+
+		if(startswith(args[0],"cd")){
 			char path[PATH_MAX];
 			strncpy(path,command+3,strlen(command)-4);
 			path[strlen(command)-4]='\0'; //Remove \n from path
@@ -162,7 +183,7 @@ int main(){
 			continue;
 		}
 
-		else if(startswith(command,"history")){
+		else if(startswith(args[0],"history")){
 			char *pch = strtok(command," ");
 			pch = strtok(NULL," ");
 			if(pch==NULL){
@@ -180,8 +201,6 @@ int main(){
 		}
 
 		else {
-			char *args[max_cmd_length];
-			createArgs(args,command);
 
 			int process = fork();
 			if(process==0){
