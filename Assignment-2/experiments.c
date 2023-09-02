@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
-#include <unistd.h> // For usleep function
 #include <limits.h> 
 
 // Function to generate an exponential random variable in microseconds
