@@ -16,7 +16,7 @@ double generateExponentialRandom(double lambda) {
 struct Process {
     int pid;                  // Process ID
     int arrival_time;         // Arrival time in microseconds
-    int burst_time;           // Burst time in microseconds
+    int job_time;           // job time in microseconds
     int remaining_time;       // Remaining time in microseconds
     int turnaround_time;      // Turnaround time in microseconds
     int waiting_time;         // Waiting time in microseconds
@@ -37,15 +37,15 @@ void roundRobin(struct Process processes[], int n, int time_slice) {
             current_time += execution_time;
             processes[current_process].remaining_time -= execution_time;
 
+            printf("%d (Round Robin): Start %d microseconds, Finish %d microseconds\n",
+                       processes[current_process].pid,
+                       current_time - execution_time,
+                       current_time);
+
             if (processes[current_process].remaining_time == 0) {
                 remaining_processes--;
                 processes[current_process].turnaround_time = current_time - processes[current_process].arrival_time;
-                processes[current_process].waiting_time = processes[current_process].turnaround_time - processes[current_process].burst_time;
-
-                printf("Process %d (Round Robin): Arrival Time %d microseconds, Finished Time %d microseconds\n",
-                       processes[current_process].pid,
-                       processes[current_process].arrival_time,
-                       current_time);
+                processes[current_process].waiting_time = processes[current_process].turnaround_time - processes[current_process].job_time;
             }
         }
 
@@ -62,15 +62,15 @@ void fcfs(struct Process processes[], int n) {
             current_time = processes[i].arrival_time;
         }
 
-        processes[i].turnaround_time = current_time + processes[i].burst_time - processes[i].arrival_time;
-        processes[i].waiting_time = processes[i].turnaround_time - processes[i].burst_time;
+        processes[i].turnaround_time = current_time + processes[i].job_time - processes[i].arrival_time;
+        processes[i].waiting_time = processes[i].turnaround_time - processes[i].job_time;
 
         printf("Process %d (FCFS): Arrival Time %d microseconds, Finished Time %d microseconds\n",
                processes[i].pid,
                processes[i].arrival_time,
-               current_time + processes[i].burst_time);
+               current_time + processes[i].job_time);
 
-        current_time += processes[i].burst_time;
+        current_time += processes[i].job_time;
     }
 }
 
@@ -82,13 +82,13 @@ void sjf(struct Process processes[], int n) {
 
     while (completed < n) {
         int shortest_job_index = -1;
-        int shortest_burst_time = INT_MAX;
+        int shortest_job_time = INT_MAX;
         bool job_found = false;
 
         for (int i = 0; i < n; i++) {
             if (processes[i].arrival_time <= current_time && processes[i].remaining_time > 0) {
-                if (processes[i].burst_time < shortest_burst_time) {
-                    shortest_burst_time = processes[i].burst_time;
+                if (processes[i].job_time < shortest_job_time) {
+                    shortest_job_time = processes[i].job_time;
                     shortest_job_index = i;
                     job_found = true;
                 }
@@ -105,7 +105,7 @@ void sjf(struct Process processes[], int n) {
             if (processes[shortest_job_index].remaining_time == 0) {
                 completed++;
                 processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
-                processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].burst_time;
+                processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
 
                 printf("Process %d (SJF): Arrival Time %d microseconds, Finished Time %d microseconds\n",
                        processes[shortest_job_index].pid,
@@ -139,9 +139,10 @@ int main() {
 
     for (int i = 0; i < n; i++) {
         processes[i].arrival_time = (int)generateExponentialRandom(meanInterArrivalTime);
-        processes[i].burst_time = (int)generateExponentialRandom(meanJobDuration);
-        processes[i].remaining_time = processes[i].burst_time;
+        processes[i].job_time = (int)generateExponentialRandom(meanJobDuration);
+        processes[i].remaining_time = processes[i].job_time;
         processes[i].pid = i + 1;
+        printf("%d %d\n",processes[i].pid,processes[i].job_time);
     }
 
   // Sort processes by arrival time (ascending order)
