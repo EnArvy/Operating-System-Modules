@@ -53,7 +53,7 @@ void roundRobin(struct Process processes[], int n, int time_slice) {
         current_process = (current_process + 1) % n;
 
         // Sleep for the time slice in microseconds
-        usleep(quantum);
+        // usleep(quantum);
     }
 }
 
