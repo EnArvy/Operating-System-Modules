@@ -16,7 +16,7 @@ double generateExponentialRandom(double lambda) {
 struct Process {
     int pid;                  // Process ID
     int arrival_time;         // Arrival time in microseconds
-    int job_time;           // job time in microseconds
+    int job_time;             // Job time in microseconds
     int remaining_time;       // Remaining time in microseconds
     int turnaround_time;      // Turnaround time in microseconds
     int waiting_time;         // Waiting time in microseconds
@@ -107,7 +107,7 @@ void sjfNonPreemptive(struct Process processes[], int n) {
             processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
 
             // Print process details
-            printf("Process %d: Arrival Time %d, Completion Time %d\n",
+            printf("%d Start %d, Finish %d\n",
                    processes[shortest_job_index].pid,
                    processes[shortest_job_index].arrival_time,
                    current_time);
@@ -174,7 +174,7 @@ int main() {
     printf("Enter the number of processes: ");
     scanf("%d", &n);
 
-    struct Process processes[n];
+    struct Process processes[n], clonedProcesses[n];
 
     // Set the seed for the random number generator
     srand(time(NULL));
@@ -197,44 +197,26 @@ int main() {
         // printf("%d %d %d\n",processes[i].pid,processes[i].job_time,processes[i].arrival_time);
     }
 
-  // Sort processes by arrival time (ascending order)
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = 0; j < n - i - 1; j++) {
-            if (processes[j].arrival_time > processes[j + 1].arrival_time) {
-                struct Process temp = processes[j];
-                processes[j] = processes[j + 1];
-                processes[j + 1] = temp;
-            }
-        }
-    }
-
- //////////////////////////////cloning array///////////////////////////////
-    struct Process clonedProcesses[n];
-
-    // Copy elements from the original processes array to the cloned array
-    for (int i = 0; i < n; i++) {
-        clonedProcesses[i] = processes[i];
-    }
-///////////////////////////////////////////////////////////////////////////
-
-
-
     printf("Enter time slice for Round Robin (in microseconds): ");
     scanf("%d", &time_slice);
 
+    // Copy elements from the original processes array to the cloned array
+    for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("----- Round Robin Scheduling -----\n");
     roundRobin(clonedProcesses, n, time_slice);
 
+    // Copy elements from the original processes array to the cloned array
+    for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- First Come First Serve Scheduling -----\n");
     fcfs(clonedProcesses, n);
 
     // Copy elements from the original processes array to the cloned array
-    for (int i = 0; i < n; i++) {
-        clonedProcesses[i] = processes[i];
-    }
+    for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Job First Scheduling -----\n");
     sjfNonPreemptive(processes, n);
 
+    // Copy elements from the original processes array to the cloned array
+    for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Remaining Time First Scheduling -----\n");
     shortestRemainingTimeFirst(processes, n);
 
