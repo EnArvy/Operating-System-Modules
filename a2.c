@@ -42,10 +42,10 @@ void roundRobin(struct Process processes[], int n, int time_slice) {
                 processes[current_process].turnaround_time = current_time - processes[current_process].arrival_time;
                 processes[current_process].waiting_time = processes[current_process].turnaround_time - processes[current_process].burst_time;
 
-                printf("Process %d completed. Turnaround time: %d microseconds, Waiting time: %d microseconds\n",
+                printf("Process %d: Arrival Time %d microseconds, Finished Time %d microseconds\n",
                        processes[current_process].pid,
-                       processes[current_process].turnaround_time,
-                       processes[current_process].waiting_time);
+                       processes[current_process].arrival_time,
+                       current_time);
             }
         }
 
@@ -90,6 +90,7 @@ int main() {
 
     return 0;
 }
+
 
 
 
