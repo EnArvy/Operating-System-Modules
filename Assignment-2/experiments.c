@@ -65,7 +65,7 @@ void fcfs(struct Process processes[], int n) {
 
         printf("%d Start %d, Finish %d\n",
                processes[i].pid,
-               processes[i].arrival_time,
+               current_time,
                current_time + processes[i].job_time);
 
         current_time += processes[i].job_time;
@@ -73,7 +73,7 @@ void fcfs(struct Process processes[], int n) {
 }
 
 // Function to perform non-preemptive SJF scheduling
-void sjfNonPreemptive(struct Process processes[], int n) {
+void sjf(struct Process processes[], int n) {
     int current_time = 0;
     int completed = 0;
     bool executed[n]; // Array to track if a process has been executed
@@ -107,7 +107,7 @@ void sjfNonPreemptive(struct Process processes[], int n) {
             // Print process details
             printf("%d Start %d, Finish %d\n",
                    processes[shortest_job_index].pid,
-                   processes[shortest_job_index].arrival_time,
+                   current_time-execution_time,
                    current_time);
 
             // Mark the process as executed
@@ -115,7 +115,13 @@ void sjfNonPreemptive(struct Process processes[], int n) {
             completed++;
         } else {
             // If no process is ready to execute, move time forward
-            current_time++;
+            int soonest_job = INT_MAX;
+            for (int i = 0; i < n; i++) {
+                if (!executed[i] && processes[i].arrival_time < soonest_job) {
+                    soonest_job = processes[i].arrival_time;
+                }
+            }
+            current_time=soonest_job;
         }
     }
 }
@@ -234,7 +240,7 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
                 process.turnaround_time = current_time - process.arrival_time;
                 process.waiting_time = process.turnaround_time - process.job_time;
 
-                printf("Process %d (MLFQ): Arrival Time %d microseconds, Finished Time %d microseconds\n",
+                printf("%d Start %d Finish %d\n",
                        process.pid, process.arrival_time, current_time);
             } else {
                 enqueue(queue_med, process);
@@ -250,7 +256,7 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
                 process.turnaround_time = current_time - process.arrival_time;
                 process.waiting_time = process.turnaround_time - process.job_time;
 
-                printf("Process %d (MLFQ): Arrival Time %d microseconds, Finished Time %d microseconds\n",
+                printf("%d Start %d Finish %d\n",
                        process.pid, process.arrival_time, current_time);
             } else {
                 enqueue(queue_low, process);
@@ -266,7 +272,7 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
                 process.turnaround_time = current_time - process.arrival_time;
                 process.waiting_time = process.turnaround_time - process.job_time;
 
-                printf("Process %d (MLFQ): Arrival Time %d microseconds, Finished Time %d microseconds\n",
+                printf("%d Start %d Finish %d\n",
                        process.pid, process.arrival_time, current_time);
             } else {
                 enqueue(queue_low, process);
@@ -315,7 +321,6 @@ int main() {
         processes[i].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].job_time;
         processes[i].pid = i + 1;
-        // printf("%d %d %d\n",processes[i].pid,processes[i].job_time,processes[i].arrival_time);
     }
 
     printf("Enter time slice for Round Robin (in microseconds): ");
@@ -334,7 +339,7 @@ int main() {
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Job First Scheduling -----\n");
-    sjfNonPreemptive(clonedProcesses, n);
+    sjf(clonedProcesses, n);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
