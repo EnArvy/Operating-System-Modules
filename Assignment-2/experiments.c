@@ -8,7 +8,6 @@
 // Function to generate an exponential random variable in microseconds
 double generateExponentialRandom(double lambda) {
     return -log(1.0 - (double)rand() / (RAND_MAX + 1.0))/ lambda;
-    // The multiplication by 1e6 converts seconds to microseconds
 }
 
 // Structure to represent a process
@@ -207,22 +206,18 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
     struct Queue* queue_high = createQueue(n);
     struct Queue* queue_med = createQueue(n);
     struct Queue* queue_low = createQueue(n);
+    int queued[n];
+    for(int i=0;i<n;i++) queued[i]=0;
 
     int current_time = 0;
     int completed = 0;
 
     while (completed < n) {
         for (int i = 0; i < n; i++) {
-            if (processes[i].arrival_time <= current_time) {
+            if (processes[i].arrival_time <= current_time && queued[i]==0) {
                 if (processes[i].remaining_time > 0) {
-                    // Determine which queue to enqueue based on remaining time
-                    if (processes[i].remaining_time <= time_slice_low) {
-                        enqueue(queue_low, processes[i]);
-                    } else if (processes[i].remaining_time <= time_slice_med) {
-                        enqueue(queue_med, processes[i]);
-                    } else {
-                        enqueue(queue_high, processes[i]);
-                    }
+                    enqueue(queue_high, processes[i]);
+                    queued[i]=1;
                 }
             }
         }
