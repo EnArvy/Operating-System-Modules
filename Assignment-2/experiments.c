@@ -37,7 +37,7 @@ void roundRobin(struct Process processes[], int n, int time_slice) {
             current_time += execution_time;
             processes[current_process].remaining_time -= execution_time;
 
-            printf("%d (Round Robin): Start %d microseconds, Finish %d microseconds\n",
+            printf("%d Start %d, Finish %d\n",
                        processes[current_process].pid,
                        current_time - execution_time,
                        current_time);
@@ -65,7 +65,7 @@ void fcfs(struct Process processes[], int n) {
         processes[i].turnaround_time = current_time + processes[i].job_time - processes[i].arrival_time;
         processes[i].waiting_time = processes[i].turnaround_time - processes[i].job_time;
 
-        printf("Process %d (FCFS): Arrival Time %d microseconds, Finished Time %d microseconds\n",
+        printf("%d Start %d, Finish %d\n",
                processes[i].pid,
                processes[i].arrival_time,
                current_time + processes[i].job_time);
@@ -107,7 +107,7 @@ void sjf(struct Process processes[], int n) {
                 processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
                 processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
 
-                printf("Process %d (SJF): Arrival Time %d microseconds, Finished Time %d microseconds\n",
+                printf("%d Start %d, Finish %d\n",
                        processes[shortest_job_index].pid,
                        processes[shortest_job_index].arrival_time,
                        current_time);
