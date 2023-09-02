@@ -146,7 +146,7 @@ int main() {
         processes[i].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].job_time;
         processes[i].pid = i + 1;
-        printf("%d %d\n",processes[i].pid,processes[i].job_time);
+        // printf("%d %d %d\n",processes[i].pid,processes[i].job_time,processes[i].arrival_time);
     }
 
   // Sort processes by arrival time (ascending order)
