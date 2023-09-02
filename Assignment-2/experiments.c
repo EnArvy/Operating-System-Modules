@@ -74,9 +74,57 @@ void fcfs(struct Process processes[], int n) {
     }
 }
 
+// Function to perform non-preemptive SJF scheduling
+void sjfNonPreemptive(struct Process processes[], int n) {
+    int current_time = 0;
+    int completed = 0;
+    bool executed[n]; // Array to track if a process has been executed
 
-// Function to simulate the Shortest Job First scheduling algorithm
-void sjf(struct Process processes[], int n) {
+    // Initialize the executed array
+    for (int i = 0; i < n; i++) {
+        executed[i] = false;
+    }
+
+    while (completed < n) {
+        int shortest_job_index = -1;
+        int shortest_job_time = INT_MAX;
+
+        // Find the shortest job that has arrived and not yet executed
+        for (int i = 0; i < n; i++) {
+            if (!executed[i] && processes[i].arrival_time <= current_time && processes[i].job_time < shortest_job_time) {
+                shortest_job_time = processes[i].job_time;
+                shortest_job_index = i;
+            }
+        }
+
+        if (shortest_job_index != -1) {
+            // Execute the shortest job
+            int execution_time = processes[shortest_job_index].job_time;
+            current_time += execution_time;
+
+            // Update turnaround, and waiting times
+            processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
+            processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
+
+            // Print process details
+            printf("Process %d: Arrival Time %d, Completion Time %d\n",
+                   processes[shortest_job_index].pid,
+                   processes[shortest_job_index].arrival_time,
+                   current_time);
+
+            // Mark the process as executed
+            executed[shortest_job_index] = true;
+            completed++;
+        } else {
+            // If no process is ready to execute, move time forward
+            current_time++;
+        }
+    }
+}
+
+
+// Function to simulate the Shortest Jobtime remaining First scheduling algorithm
+void shortestRemainingTimeFirst(struct Process processes[], int n) {
     int current_time = 0;
     int completed = 0;
 
@@ -159,17 +207,36 @@ int main() {
             }
         }
     }
+
+ //////////////////////////////cloning array///////////////////////////////
+    struct Process clonedProcesses[n];
+
+    // Copy elements from the original processes array to the cloned array
+    for (int i = 0; i < n; i++) {
+        clonedProcesses[i] = processes[i];
+    }
+///////////////////////////////////////////////////////////////////////////
+
+
+
     printf("Enter time slice for Round Robin (in microseconds): ");
     scanf("%d", &time_slice);
 
     printf("----- Round Robin Scheduling -----\n");
-    roundRobin(processes, n, time_slice);
+    roundRobin(clonedProcesses, n, time_slice);
 
     printf("\n----- First Come First Serve Scheduling -----\n");
-    fcfs(processes, n);
+    fcfs(clonedProcesses, n);
 
-    printf("\n----- Shortest Job First Scheduling -----\n");
-    sjf(processes, n);
+    // Copy elements from the original processes array to the cloned array
+    for (int i = 0; i < n; i++) {
+        clonedProcesses[i] = processes[i];
+    }
+    printf("\n----- shortest Job First Scheduling -----\n");
+    sjfNonPreemptive(processes, n);
+
+    printf("\n----- shortest Remaining Time First Scheduling -----\n");
+    shortestRemainingTimeFirst(processes, n);
 
     return 0;
 }
