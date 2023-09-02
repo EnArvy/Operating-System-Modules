@@ -26,14 +26,13 @@ struct Process {
 void roundRobin(struct Process processes[], int n, int time_slice) {
     int remaining_processes = n;
     int current_time = 0;
-    int quantum = time_slice * 1e6; // Convert time slice to microseconds
     int current_process = 0;
 
     while (remaining_processes > 0) {
         if (processes[current_process].remaining_time > 0) {
-            int execution_time = (processes[current_process].remaining_time < quantum)
+            int execution_time = (processes[current_process].remaining_time < time_slice)
                                     ? processes[current_process].remaining_time
-                                    : quantum;
+                                    : time_slice;
 
             current_time += execution_time;
             processes[current_process].remaining_time -= execution_time;
@@ -51,9 +50,6 @@ void roundRobin(struct Process processes[], int n, int time_slice) {
         }
 
         current_process = (current_process + 1) % n;
-
-        // Sleep for the time slice in microseconds
-        // usleep(quantum);
     }
 }
 
