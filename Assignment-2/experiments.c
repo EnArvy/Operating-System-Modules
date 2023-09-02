@@ -8,7 +8,7 @@
 
 // Function to generate an exponential random variable in microseconds
 double generateExponentialRandom(double lambda) {
-    return -log(1.0 - (double)rand() / (RAND_MAX + 1.0)) * 1e6 / lambda;
+    return -log(1.0 - (double)rand() / (RAND_MAX + 1.0))/ lambda;
     // The multiplication by 1e6 converts seconds to microseconds
 }
 
@@ -138,8 +138,8 @@ int main() {
     scanf("%lf", &meanJobDuration);
 
     for (int i = 0; i < n; i++) {
-        processes[i].arrival_time = (int)generateExponentialRandom(meanInterArrivalTime);
-        processes[i].burst_time = (int)generateExponentialRandom(meanJobDuration);
+        processes[i].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime));
+        processes[i].burst_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].burst_time;
         processes[i].pid = i + 1;
     }
