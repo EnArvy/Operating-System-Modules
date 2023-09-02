@@ -137,8 +137,12 @@ int main() {
     printf("Enter the mean job duration (in microseconds): ");
     scanf("%lf", &meanJobDuration);
 
-    for (int i = 0; i < n; i++) {
-        processes[i].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime));
+    processes[0].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime));
+    processes[0].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
+    processes[0].remaining_time = processes[0].job_time;
+    processes[0].pid = 1;
+    for (int i = 1; i < n; i++) {
+        processes[i].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime))+processes[i-1].arrival_time;
         processes[i].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].job_time;
         processes[i].pid = i + 1;
