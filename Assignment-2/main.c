@@ -228,6 +228,156 @@ struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
 }
 
 
+struct Queue {
+    int front, rear, size;
+    unsigned capacity;
+    struct Process* array;
+};
+
+// Function to create a queue with a given capacity
+struct Queue* createQueue(unsigned capacity) {
+    struct Queue* queue = (struct Queue*)malloc(sizeof(struct Queue));
+    queue->capacity = capacity;
+    queue->size = 0;
+    queue->front = 0;
+    queue->rear = capacity - 1;
+    queue->array = (struct Process*)malloc(queue->capacity * sizeof(struct Process));
+    return queue;
+}
+
+// Function to check if a queue is empty
+bool isEmpty(struct Queue* queue) {
+    return (queue->size == 0);
+}
+
+// Function to enqueue a process
+void enqueue(struct Queue* queue, struct Process process) {
+    if (queue->size == queue->capacity)
+        return;
+    queue->rear = (queue->rear + 1) % queue->capacity;
+    queue->array[queue->rear] = process;
+    queue->size += 1;
+}
+
+// Function to dequeue a process
+struct Process dequeue(struct Queue* queue) {
+    struct Process process = queue->array[queue->front];
+    queue->front = (queue->front + 1) % queue->capacity;
+    queue->size -= 1;
+    return process;
+}
+
+// Function to perform MLFQ scheduling
+struct log* mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low) {
+    struct Queue* queue_high = createQueue(n);
+    struct Queue* queue_med = createQueue(n);
+    struct Queue* queue_low = createQueue(n);
+    struct log* head = NULL;
+    int queued[n];
+    for(int i=0;i<n;i++) queued[i]=0;
+
+    int current_time = 0;
+    int completed = 0;
+
+    while (completed < n) {
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && queued[i]==0) {
+                if (processes[i].remaining_time > 0) {
+                    enqueue(queue_high, processes[i]);
+                    queued[i]=1;
+                }
+            }
+        }
+
+        // Dequeue from the highest-priority queue first
+        if (!isEmpty(queue_high)) {
+            struct Process process = dequeue(queue_high);
+            int execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
+            current_time += execution_time;
+            process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
+
+            if(process.response_time == -1){
+                process.response_time = 1;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].response_time = current_time - processes[i].arrival_time - execution_time;
+                        break;
+                    }
+                }
+                process.response_time = current_time - process.arrival_time - execution_time;
+            }
+
+            if (process.remaining_time == 0) {
+                completed++;
+                process.turnaround_time = current_time - process.arrival_time;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
+            } else {
+                enqueue(queue_med, process);
+            }
+        } else if (!isEmpty(queue_med)) {
+            struct Process process = dequeue(queue_med);
+            int execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
+            current_time += execution_time;
+            process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
+
+            if (process.remaining_time == 0) {
+                completed++;
+                process.turnaround_time = current_time - process.arrival_time;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
+            } else {
+                enqueue(queue_low, process);
+            }
+        } else if (!isEmpty(queue_low)) {
+            struct Process process = dequeue(queue_low);
+            int execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
+            current_time += execution_time;
+            process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
+
+            if (process.remaining_time == 0) {
+                completed++;
+                process.turnaround_time = current_time - process.arrival_time;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
+            } else {
+                enqueue(queue_low, process);
+            }
+        } else {
+            current_time++; // No process is ready to execute, so move time forward
+        }
+    }
+
+    free(queue_high->array);
+    free(queue_med->array);
+    free(queue_low->array);
+    free(queue_high);
+    free(queue_med);
+    free(queue_low);
+
+    combineLogs(head);
+    return head;
+}
+
+
 
 int main(int argc, char **argv){
 	FILE *input = fopen(argv[1],"r");
@@ -266,7 +416,11 @@ int main(int argc, char **argv){
 	head = shortestRemainingTimeFirst(clonedProcesses,numberProcesses);
     printLog(head);
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
-	// MLFQ();
+	
+    for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
+	head = mlfq(clonedProcesses,numberProcesses,TsMLFQ1,TsMLFQ2,TsMLFQ3);
+    printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
 
 	return 0;
 }
