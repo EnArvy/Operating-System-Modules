@@ -78,7 +78,6 @@ void printAvgTurnaroundResponse(struct Process processes[], int n){
 }
 
 
-// Function to simulate the First Come First Serve scheduling algorithm
 struct log* fcfs(struct Process processes[], int n) {
     int current_time = 0;
     struct log* head=NULL;
@@ -99,7 +98,6 @@ struct log* fcfs(struct Process processes[], int n) {
 }
 
 
-// Function to simulate the Round Robin scheduling algorithm
 struct log* roundRobin(struct Process processes[], int n, int time_slice) {
     int remaining_processes = n;
     int current_time = 0;
@@ -132,7 +130,6 @@ struct log* roundRobin(struct Process processes[], int n, int time_slice) {
     combineLogs(head);
     return head;
 }
-
 
 
 struct log* sjf(struct Process processes[], int n) {
@@ -188,6 +185,49 @@ struct log* sjf(struct Process processes[], int n) {
 }
 
 
+struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
+    int current_time = 0;
+    int completed = 0;
+    struct log* head = NULL;
+
+    while (completed < n) {
+        int shortest_job_index = -1;
+        int shortest_job_time = INT_MAX;
+        bool job_found = false;
+
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && processes[i].remaining_time > 0) {
+                if (processes[i].job_time < shortest_job_time) {
+                    shortest_job_time = processes[i].job_time;
+                    shortest_job_index = i;
+                    job_found = true;
+                }
+            }
+        }
+
+        if (!job_found) {
+            current_time++;
+        } else {
+            int execution_time = 1; // Execute one unit of time
+            current_time += execution_time;
+            processes[shortest_job_index].remaining_time -= execution_time;
+            insertLog(&head,processes[shortest_job_index].pid,current_time - execution_time,current_time);
+            if(processes[shortest_job_index].response_time == -1){
+                processes[shortest_job_index].response_time = current_time - processes[shortest_job_index].arrival_time - execution_time;
+            }
+
+            if (processes[shortest_job_index].remaining_time == 0) {
+                completed++;
+                processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
+            }
+        }
+    }
+
+    combineLogs(head);
+    return head;
+}
+
+
 
 int main(int argc, char **argv){
 	FILE *input = fopen(argv[1],"r");
@@ -222,7 +262,10 @@ int main(int argc, char **argv){
     printLog(head);
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
 
-	// ShortestTimeRemaining();
+	for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
+	head = shortestRemainingTimeFirst(clonedProcesses,numberProcesses);
+    printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
 	// MLFQ();
 
 	return 0;
