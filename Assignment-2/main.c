@@ -1,6 +1,8 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include<stdbool.h>
+#include<limits.h>
 
 // Structure to represent a process
 struct Process {
@@ -132,6 +134,61 @@ struct log* roundRobin(struct Process processes[], int n, int time_slice) {
 }
 
 
+
+struct log* sjf(struct Process processes[], int n) {
+    int current_time = 0;
+    int completed = 0;
+    bool executed[n]; // Array to track if a process has been executed
+    struct log *head = NULL;
+
+    // Initialize the executed array
+    for (int i = 0; i < n; i++) {
+        executed[i] = false;
+    }
+
+    while (completed < n) {
+        int shortest_job_index = -1;
+        int shortest_job_time = INT_MAX;
+
+        // Find the shortest job that has arrived and not yet executed
+        for (int i = 0; i < n; i++) {
+            if (!executed[i] && processes[i].arrival_time <= current_time && processes[i].job_time < shortest_job_time) {
+                shortest_job_time = processes[i].job_time;
+                shortest_job_index = i;
+            }
+        }
+
+        if (shortest_job_index != -1) {
+            // Execute the shortest job
+            int execution_time = processes[shortest_job_index].job_time;
+            current_time += execution_time;
+
+            // Update turnaround, and waiting times
+            processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
+            processes[shortest_job_index].response_time = current_time - processes[shortest_job_index].arrival_time - execution_time;
+
+            insertLog(&head,processes[shortest_job_index].pid,current_time - execution_time,current_time);
+
+            // Mark the process as executed
+            executed[shortest_job_index] = true;
+            completed++;
+        } else {
+            // If no process is ready to execute, move time forward
+            int soonest_job = INT_MAX;
+            for (int i = 0; i < n; i++) {
+                if (!executed[i] && processes[i].arrival_time < soonest_job) {
+                    soonest_job = processes[i].arrival_time;
+                }
+            }
+            current_time=soonest_job;
+        }
+    }
+
+    return head;
+}
+
+
+
 int main(int argc, char **argv){
 	FILE *input = fopen(argv[1],"r");
 	FILE *output = freopen(argv[2],"w",stdout);
@@ -154,11 +211,17 @@ int main(int argc, char **argv){
 	head = fcfs(clonedProcesses,numberProcesses);
     printLog(head);
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
+
 	for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
 	head = roundRobin(clonedProcesses,numberProcesses,TsRR);
     printLog(head);
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
-	// ShortestJobFirst();
+
+    for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
+	head = sjf(clonedProcesses,numberProcesses);
+    printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
+
 	// ShortestTimeRemaining();
 	// MLFQ();
 
