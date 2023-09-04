@@ -1,4 +1,4 @@
 default:
-	gcc main.c -o main && ./main input_example.txt output.txt TsRR TsMLFQ1 TsMLFQ2 TsMLFQ3 BMLFQ
+	gcc main.c -o main && ./main input_example.txt output.txt 5 1 2 3 6
 clean:
 	rm -f main.o
