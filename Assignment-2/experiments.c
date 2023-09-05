@@ -13,22 +13,21 @@ double generateExponentialRandom(double lambda) {
 
 struct Process {
     char pid[32];                  // Process ID
-    int arrival_time;         // Arrival time in microseconds
-    int job_time;           // Burst time in microseconds
-    int remaining_time;       // Remaining time in microseconds
-    int turnaround_time;      // Turnaround time in microseconds
-    int response_time;         // Waiting time in microseconds
+    double arrival_time;         // Arrival time in microseconds
+    double job_time;           // Burst time in microseconds
+    double remaining_time;       // Remaining time in microseconds
+    double turnaround_time;      // Turnaround time in microseconds
+    double response_time;         // Waiting time in microseconds
 };
 
 //Linked list of log struct
 struct log{
     char pid[32];
-    int start;
-    int finish;
+    double start;
+    double finish;
     struct log *next;
 };
-//Function to create a new node
-struct log* createLog(char *pid, int start, int finish){
+struct log* createLog(char *pid, double start, double finish){
     struct log *newNode = (struct log*)malloc(sizeof(struct log));
     strcpy(newNode->pid,pid);
     newNode->start = start;
@@ -36,8 +35,7 @@ struct log* createLog(char *pid, int start, int finish){
     newNode->next = NULL;
     return newNode;
 }
-//Function to insert a node at the end of the linked list
-void insertLog(struct log **head,char *pid, int start, int finish){
+void insertLog(struct log **head,char *pid, double start, double finish){
     struct log *newNode = createLog(pid,start,finish);
     if(*head == NULL){
         *head = newNode;
@@ -63,28 +61,62 @@ void combineLogs(struct log*head){
 }
 void printLog(struct log *head){
     while(head != NULL){
-        printf("%s %d %d ",head->pid,head->start,head->finish);
+        printf("%s %.3lf %.3lf ",head->pid,head->start,head->finish);
         head = head->next;
     }
     printf("\n");
 }
 
 void printAvgTurnaroundResponse(struct Process processes[], int n){
-    int sum = 0;
+    double sum = 0;
     for(int i=0;i<n;i++){
         sum += processes[i].turnaround_time;
     }
-    printf("%.2f ",(float)sum/n);
+    printf("%.3f ",(float)sum/n);
     sum=0;
+    // printf("\n");
     for(int i=0;i<n;i++){
         sum += processes[i].response_time;
+        // printf("%.3f ",processes[i].response_time);
     }
-    printf("%.2f\n",(float)sum/n);
+    // printf("\n");
+    printf("%.3f\n",(float)sum/n);
+}
+
+struct Queue {
+    int front, rear, size;
+    unsigned capacity;
+    struct Process* array;
+};
+struct Queue* createQueue(unsigned capacity) {
+    struct Queue* queue = (struct Queue*)malloc(sizeof(struct Queue));
+    queue->capacity = capacity;
+    queue->size = 0;
+    queue->front = 0;
+    queue->rear = capacity - 1;
+    queue->array = (struct Process*)malloc(queue->capacity * sizeof(struct Process));
+    return queue;
+}
+bool isEmpty(struct Queue* queue) {
+    return (queue->size == 0);
+}
+void enqueue(struct Queue* queue, struct Process process) {
+    if (queue->size == queue->capacity)
+        return;
+    queue->rear = (queue->rear + 1) % queue->capacity;
+    queue->array[queue->rear] = process;
+    queue->size += 1;
+}
+struct Process dequeue(struct Queue* queue) {
+    struct Process process = queue->array[queue->front];
+    queue->front = (queue->front + 1) % queue->capacity;
+    queue->size -= 1;
+    return process;
 }
 
 
 struct log* fcfs(struct Process processes[], int n) {
-    int current_time = 0;
+    double current_time = 0;
     struct log* head=NULL;
 
     for (int i = 0; i < n; i++) {
@@ -103,34 +135,77 @@ struct log* fcfs(struct Process processes[], int n) {
 }
 
 
-struct log* roundRobin(struct Process processes[], int n, int time_slice) {
-    int remaining_processes = n;
-    int current_time = 0;
-    int current_process = 0;
+struct log* roundRobin(struct Process processes[], int n, double time_slice) {
+    struct Queue* queue = createQueue(n);
+    struct log* head = NULL;
+    int queued[n];
+    for(int i=0;i<n;i++) queued[i]=0;
 
-    struct log *head = NULL;
+    double current_time = 0;
+    int completed = 0;
 
-    while (remaining_processes > 0) {
-        if (processes[current_process].remaining_time > 0) {
-            int execution_time = (processes[current_process].remaining_time < time_slice)
-                                    ? processes[current_process].remaining_time
-                                    : time_slice;
-            if(processes[current_process].response_time == -1){
-                processes[current_process].response_time = current_time - processes[current_process].arrival_time;
-            }
-            current_time += execution_time;
-            processes[current_process].remaining_time -= execution_time;
-
-            insertLog(&head,processes[current_process].pid,current_time - execution_time,current_time);
-
-            if (processes[current_process].remaining_time == 0) {
-                remaining_processes--;
-                processes[current_process].turnaround_time = current_time - processes[current_process].arrival_time;
+    while (completed < n) {
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && queued[i]==0) {
+                if (processes[i].remaining_time > 0) {
+                    enqueue(queue, processes[i]);
+                    queued[i]=1;
+                }
             }
         }
 
-        current_process = (current_process + 1) % n;
+        if (!isEmpty(queue)) {
+            struct Process process = dequeue(queue);
+            double execution_time = (process.remaining_time < time_slice) ? process.remaining_time : time_slice;
+            current_time += execution_time;
+            process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
+
+            if(process.response_time == -1){
+                process.response_time = 1;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].response_time = current_time - processes[i].arrival_time - execution_time;
+                        break;
+                    }
+                }
+                process.response_time = current_time - process.arrival_time - execution_time;
+            }
+            for (int i = 0; i < n; i++) {
+                if (processes[i].arrival_time <= current_time && queued[i]==0) {
+                    if (processes[i].remaining_time > 0) {
+                        enqueue(queue, processes[i]);
+                        queued[i]=1;
+                    }
+                }
+            }
+
+            if (process.remaining_time == 0) {
+                completed++;
+                process.turnaround_time = current_time - process.arrival_time;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
+            } else {
+                enqueue(queue, process);
+            }
+        } else {
+            double temptime = __DBL_MAX__;
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
+                    temptime = processes[i].arrival_time;
+                }
+            }
+            current_time = temptime; 
+        }
     }
+
+    free(queue->array);
+    free(queue);
 
     combineLogs(head);
     return head;
@@ -138,7 +213,7 @@ struct log* roundRobin(struct Process processes[], int n, int time_slice) {
 
 
 struct log* sjf(struct Process processes[], int n) {
-    int current_time = 0;
+    double current_time = 0;
     int completed = 0;
     bool executed[n]; // Array to track if a process has been executed
     struct log *head = NULL;
@@ -150,7 +225,7 @@ struct log* sjf(struct Process processes[], int n) {
 
     while (completed < n) {
         int shortest_job_index = -1;
-        int shortest_job_time = INT_MAX;
+        double shortest_job_time = __DBL_MAX__;
 
         // Find the shortest job that has arrived and not yet executed
         for (int i = 0; i < n; i++) {
@@ -162,7 +237,7 @@ struct log* sjf(struct Process processes[], int n) {
 
         if (shortest_job_index != -1) {
             // Execute the shortest job
-            int execution_time = processes[shortest_job_index].job_time;
+            double execution_time = processes[shortest_job_index].job_time;
             current_time += execution_time;
 
             // Update turnaround, and waiting times
@@ -176,7 +251,7 @@ struct log* sjf(struct Process processes[], int n) {
             completed++;
         } else {
             // If no process is ready to execute, move time forward
-            int soonest_job = INT_MAX;
+            double soonest_job = __DBL_MAX__;
             for (int i = 0; i < n; i++) {
                 if (!executed[i] && processes[i].arrival_time < soonest_job) {
                     soonest_job = processes[i].arrival_time;
@@ -191,19 +266,19 @@ struct log* sjf(struct Process processes[], int n) {
 
 
 struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
-    int current_time = 0;
+    double current_time = 0;
     int completed = 0;
     struct log* head = NULL;
 
     while (completed < n) {
         int shortest_job_index = -1;
-        int shortest_job_time = INT_MAX;
+        double shortest_job_time = __DBL_MAX__;
         bool job_found = false;
 
         for (int i = 0; i < n; i++) {
             if (processes[i].arrival_time <= current_time && processes[i].remaining_time > 0) {
-                if (processes[i].job_time < shortest_job_time) {
-                    shortest_job_time = processes[i].job_time;
+                if (processes[i].remaining_time < shortest_job_time) {
+                    shortest_job_time = processes[i].remaining_time;
                     shortest_job_index = i;
                     job_found = true;
                 }
@@ -211,7 +286,7 @@ struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
         }
 
         if (!job_found) {
-            int temptime = INT_MAX;
+            double temptime = __DBL_MAX__;
             for(int i=0;i<n;i++){
                 if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
                     temptime = processes[i].arrival_time;
@@ -219,7 +294,7 @@ struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
             }
             current_time = temptime;
         } else {
-            int execution_time = INT_MAX; // Execute one unit of time
+            double execution_time = __DBL_MAX__; // Execute one unit of time
             for(int i=0;i<n;i++){
                 if(processes[i].arrival_time > current_time && processes[i].remaining_time > 0 && i != shortest_job_index){
                     if(processes[i].arrival_time - current_time < execution_time){
@@ -247,47 +322,7 @@ struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
 }
 
 
-struct Queue {
-    int front, rear, size;
-    unsigned capacity;
-    struct Process* array;
-};
-
-// Function to create a queue with a given capacity
-struct Queue* createQueue(unsigned capacity) {
-    struct Queue* queue = (struct Queue*)malloc(sizeof(struct Queue));
-    queue->capacity = capacity;
-    queue->size = 0;
-    queue->front = 0;
-    queue->rear = capacity - 1;
-    queue->array = (struct Process*)malloc(queue->capacity * sizeof(struct Process));
-    return queue;
-}
-
-// Function to check if a queue is empty
-bool isEmpty(struct Queue* queue) {
-    return (queue->size == 0);
-}
-
-// Function to enqueue a process
-void enqueue(struct Queue* queue, struct Process process) {
-    if (queue->size == queue->capacity)
-        return;
-    queue->rear = (queue->rear + 1) % queue->capacity;
-    queue->array[queue->rear] = process;
-    queue->size += 1;
-}
-
-// Function to dequeue a process
-struct Process dequeue(struct Queue* queue) {
-    struct Process process = queue->array[queue->front];
-    queue->front = (queue->front + 1) % queue->capacity;
-    queue->size -= 1;
-    return process;
-}
-
-// Function to perform MLFQ scheduling
-struct log* mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low, int boost) {
+struct log* mlfq(struct Process processes[], int n, double time_slice_high, double time_slice_med, double time_slice_low, double boost) {
     struct Queue* queue_high = createQueue(n);
     struct Queue* queue_med = createQueue(n);
     struct Queue* queue_low = createQueue(n);
@@ -295,9 +330,9 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
     int queued[n];
     for(int i=0;i<n;i++) queued[i]=0;
 
-    int current_time = 0;
+    double current_time = 0;
     int completed = 0;
-    int boosttrack = 0;
+    double boosttrack = 0;
 
     while (completed < n) {
         for (int i = 0; i < n; i++) {
@@ -312,7 +347,7 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
         // Dequeue from the highest-priority queue first
         if (!isEmpty(queue_high)) {
             struct Process process = dequeue(queue_high);
-            int execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
+            double execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
             if(boosttrack + execution_time > boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
@@ -349,7 +384,7 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
             }
         } else if (!isEmpty(queue_med)) {
             struct Process process = dequeue(queue_med);
-            int execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
+            double execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
             if(boosttrack + execution_time > boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
@@ -375,7 +410,7 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
             }
         } else if (!isEmpty(queue_low)) {
             struct Process process = dequeue(queue_low);
-            int execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
+            double execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
             if(boosttrack + execution_time > boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
@@ -385,7 +420,8 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
-            insertLog(&head,process.pid,current_time - execution_time,current_time);
+            if(execution_time!=0)
+                insertLog(&head,process.pid,current_time - execution_time,current_time);
 
             if (process.remaining_time == 0) {
                 completed++;
@@ -400,7 +436,7 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
                 enqueue(queue_low, process);
             }
         } else {
-            int temptime = INT_MAX;
+            double temptime = __DBL_MAX__;
             for(int i=0;i<n;i++){
                 if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
                     temptime = processes[i].arrival_time;
