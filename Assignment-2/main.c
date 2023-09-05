@@ -63,7 +63,6 @@ void printLog(struct log *head){
     printf("\n");
 }
 
-
 void printAvgTurnaroundResponse(struct Process processes[], int n){
     int sum = 0;
     for(int i=0;i<n;i++){
@@ -206,9 +205,23 @@ struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
         }
 
         if (!job_found) {
-            current_time++;
+            int temptime = INT_MAX;
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
+                    temptime = processes[i].arrival_time;
+                }
+            }
+            current_time = temptime;
         } else {
-            int execution_time = 1; // Execute one unit of time
+            int execution_time = INT_MAX; // Execute one unit of time
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].remaining_time > 0 && i != shortest_job_index){
+                    if(processes[i].arrival_time - current_time < execution_time){
+                        execution_time = processes[i].arrival_time - current_time;
+                    }
+                }
+            }
+            execution_time = (execution_time<processes[shortest_job_index].remaining_time)?execution_time:processes[shortest_job_index].remaining_time;
             current_time += execution_time;
             processes[shortest_job_index].remaining_time -= execution_time;
             insertLog(&head,processes[shortest_job_index].pid,current_time - execution_time,current_time);
@@ -268,7 +281,7 @@ struct Process dequeue(struct Queue* queue) {
 }
 
 // Function to perform MLFQ scheduling
-struct log* mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low) {
+struct log* mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low, int boost) {
     struct Queue* queue_high = createQueue(n);
     struct Queue* queue_med = createQueue(n);
     struct Queue* queue_low = createQueue(n);
@@ -278,6 +291,7 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
 
     int current_time = 0;
     int completed = 0;
+    int boosttrack = 0;
 
     while (completed < n) {
         for (int i = 0; i < n; i++) {
@@ -293,6 +307,12 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
         if (!isEmpty(queue_high)) {
             struct Process process = dequeue(queue_high);
             int execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
@@ -324,6 +344,12 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
         } else if (!isEmpty(queue_med)) {
             struct Process process = dequeue(queue_med);
             int execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
@@ -344,6 +370,12 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
         } else if (!isEmpty(queue_low)) {
             struct Process process = dequeue(queue_low);
             int execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
@@ -362,7 +394,25 @@ struct log* mlfq(struct Process processes[], int n, int time_slice_high, int tim
                 enqueue(queue_low, process);
             }
         } else {
-            current_time++; // No process is ready to execute, so move time forward
+            int temptime = INT_MAX;
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
+                    temptime = processes[i].arrival_time;
+                }
+            }
+            boosttrack += temptime - current_time;
+            current_time = temptime; 
+            while(boosttrack >= boost) boosttrack -= boost;
+        }
+        if(boosttrack == 0){
+            while(!isEmpty(queue_med)){
+                struct Process process = dequeue(queue_med);
+                enqueue(queue_high,process);
+            }
+            while(!isEmpty(queue_low)){
+                struct Process process = dequeue(queue_low);
+                enqueue(queue_high,process);
+            }
         }
     }
 
@@ -397,6 +447,17 @@ int main(int argc, char **argv){
 		numberProcesses = i+1;
 	}
 
+    // Sort processes by arrival time (ascending order)
+    for (int i = 0; i < numberProcesses - 1; i++) {
+        for (int j = 0; j < numberProcesses - i - 1; j++) {
+            if (processes[j].arrival_time > processes[j + 1].arrival_time) {
+                struct Process temp = processes[j];
+                processes[j] = processes[j + 1];
+                processes[j + 1] = temp;
+            }
+        }
+    }
+
     for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
 	head = fcfs(clonedProcesses,numberProcesses);
     printLog(head);
@@ -418,7 +479,7 @@ int main(int argc, char **argv){
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
 	
     for(int i=0;i<numberProcesses;i++)clonedProcesses[i]=processes[i];
-	head = mlfq(clonedProcesses,numberProcesses,TsMLFQ1,TsMLFQ2,TsMLFQ3);
+	head = mlfq(clonedProcesses,numberProcesses,TsMLFQ1,TsMLFQ2,TsMLFQ3,BMLFQ);
     printLog(head);
     printAvgTurnaroundResponse(clonedProcesses,numberProcesses);
 
