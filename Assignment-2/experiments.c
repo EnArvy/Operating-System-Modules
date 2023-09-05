@@ -348,7 +348,7 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
         if (!isEmpty(queue_high)) {
             struct Process process = dequeue(queue_high);
             double execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
-            if(boosttrack + execution_time > boost){
+            if(boosttrack + execution_time >= boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
             }else{
@@ -357,7 +357,9 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
-            insertLog(&head,process.pid,current_time - execution_time,current_time);
+            if(execution_time!=0)
+                insertLog(&head,process.pid,current_time - execution_time,current_time);
+            // printf("%s1 %.3lf %.3lf\n",process.pid,current_time - execution_time,current_time);
 
             if(process.response_time == -1){
                 process.response_time = 1;
@@ -385,7 +387,7 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
         } else if (!isEmpty(queue_med)) {
             struct Process process = dequeue(queue_med);
             double execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
-            if(boosttrack + execution_time > boost){
+            if(boosttrack + execution_time >= boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
             }else{
@@ -394,7 +396,9 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
             current_time += execution_time;
             process.remaining_time -= execution_time;
 
-            insertLog(&head,process.pid,current_time - execution_time,current_time);
+            if(execution_time!=0)
+                insertLog(&head,process.pid,current_time - execution_time,current_time);
+            // printf("%s2 %.3lf %.3lf\n",process.pid,current_time - execution_time,current_time);
 
             if (process.remaining_time == 0) {
                 completed++;
@@ -411,7 +415,7 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
         } else if (!isEmpty(queue_low)) {
             struct Process process = dequeue(queue_low);
             double execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
-            if(boosttrack + execution_time > boost){
+            if(boosttrack + execution_time >= boost){
                 execution_time = boost - boosttrack; 
                 boosttrack = 0;
             }else{
@@ -422,6 +426,7 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
 
             if(execution_time!=0)
                 insertLog(&head,process.pid,current_time - execution_time,current_time);
+            // printf("%s3 %.3lf %.3lf\n",process.pid,current_time - execution_time,current_time);
 
             if (process.remaining_time == 0) {
                 completed++;
@@ -445,6 +450,14 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
             boosttrack += temptime - current_time;
             current_time = temptime; 
             while(boosttrack >= boost) boosttrack -= boost;
+        }
+        for (int i = 0; i < n; i++) {
+            if (processes[i].arrival_time <= current_time && queued[i]==0) {
+                if (processes[i].remaining_time > 0) {
+                    enqueue(queue_high, processes[i]);
+                    queued[i]=1;
+                }
+            }
         }
         if(boosttrack == 0){
             while(!isEmpty(queue_med)){
