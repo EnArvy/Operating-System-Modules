@@ -4,56 +4,88 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h> 
+#include<string.h>
 
 // Function to generate an exponential random variable in microseconds
 double generateExponentialRandom(double lambda) {
     return -log(1.0 - (double)rand() / (RAND_MAX + 1.0))/ lambda;
 }
 
-// Structure to represent a process
 struct Process {
-    int pid;                  // Process ID
+    char pid[32];                  // Process ID
     int arrival_time;         // Arrival time in microseconds
-    int job_time;             // Job time in microseconds
+    int job_time;           // Burst time in microseconds
     int remaining_time;       // Remaining time in microseconds
     int turnaround_time;      // Turnaround time in microseconds
-    int waiting_time;         // Waiting time in microseconds
+    int response_time;         // Waiting time in microseconds
 };
 
-// Function to simulate the Round Robin scheduling algorithm
-void roundRobin(struct Process processes[], int n, int time_slice) {
-    int remaining_processes = n;
-    int current_time = 0;
-    int current_process = 0;
-
-    while (remaining_processes > 0) {
-        if (processes[current_process].remaining_time > 0) {
-            int execution_time = (processes[current_process].remaining_time < time_slice)
-                                    ? processes[current_process].remaining_time
-                                    : time_slice;
-
-            current_time += execution_time;
-            processes[current_process].remaining_time -= execution_time;
-
-            printf("%d Start %d, Finish %d\n",
-                       processes[current_process].pid,
-                       current_time - execution_time,
-                       current_time);
-
-            if (processes[current_process].remaining_time == 0) {
-                remaining_processes--;
-                processes[current_process].turnaround_time = current_time - processes[current_process].arrival_time;
-                processes[current_process].waiting_time = processes[current_process].turnaround_time - processes[current_process].job_time;
-            }
+//Linked list of log struct
+struct log{
+    char pid[32];
+    int start;
+    int finish;
+    struct log *next;
+};
+//Function to create a new node
+struct log* createLog(char *pid, int start, int finish){
+    struct log *newNode = (struct log*)malloc(sizeof(struct log));
+    strcpy(newNode->pid,pid);
+    newNode->start = start;
+    newNode->finish = finish;
+    newNode->next = NULL;
+    return newNode;
+}
+//Function to insert a node at the end of the linked list
+void insertLog(struct log **head,char *pid, int start, int finish){
+    struct log *newNode = createLog(pid,start,finish);
+    if(*head == NULL){
+        *head = newNode;
+        return;
+    }
+    struct log *temp = *head;
+    while(temp->next != NULL){
+        temp = temp->next;
+    }
+    temp->next = newNode;
+}
+void combineLogs(struct log*head){
+    struct log *temp = head;
+    while(temp->next != NULL){
+        if(strcmp(temp->pid,temp->next->pid) == 0){
+            temp->finish = temp->next->finish;
+            free(temp->next);
+            temp->next = temp->next->next;
+            continue;
         }
-
-        current_process = (current_process + 1) % n;
+        temp = temp->next;
     }
 }
+void printLog(struct log *head){
+    while(head != NULL){
+        printf("%s %d %d ",head->pid,head->start,head->finish);
+        head = head->next;
+    }
+    printf("\n");
+}
 
-// Function to simulate the First Come First Serve scheduling algorithm
-void fcfs(struct Process processes[], int n) {
+void printAvgTurnaroundResponse(struct Process processes[], int n){
+    int sum = 0;
+    for(int i=0;i<n;i++){
+        sum += processes[i].turnaround_time;
+    }
+    printf("%.2f ",(float)sum/n);
+    sum=0;
+    for(int i=0;i<n;i++){
+        sum += processes[i].response_time;
+    }
+    printf("%.2f\n",(float)sum/n);
+}
+
+
+struct log* fcfs(struct Process processes[], int n) {
     int current_time = 0;
+    struct log* head=NULL;
 
     for (int i = 0; i < n; i++) {
         if (processes[i].arrival_time > current_time) {
@@ -61,22 +93,55 @@ void fcfs(struct Process processes[], int n) {
         }
 
         processes[i].turnaround_time = current_time + processes[i].job_time - processes[i].arrival_time;
-        processes[i].waiting_time = processes[i].turnaround_time - processes[i].job_time;
+        processes[i].response_time = current_time - processes[i].arrival_time;
 
-        printf("%d Start %d, Finish %d\n",
-               processes[i].pid,
-               current_time,
-               current_time + processes[i].job_time);
+        insertLog(&head,processes[i].pid,current_time,current_time + processes[i].job_time);
 
         current_time += processes[i].job_time;
     }
+    return head;
 }
 
-// Function to perform non-preemptive SJF scheduling
-void sjf(struct Process processes[], int n) {
+
+struct log* roundRobin(struct Process processes[], int n, int time_slice) {
+    int remaining_processes = n;
+    int current_time = 0;
+    int current_process = 0;
+
+    struct log *head = NULL;
+
+    while (remaining_processes > 0) {
+        if (processes[current_process].remaining_time > 0) {
+            int execution_time = (processes[current_process].remaining_time < time_slice)
+                                    ? processes[current_process].remaining_time
+                                    : time_slice;
+            if(processes[current_process].response_time == -1){
+                processes[current_process].response_time = current_time - processes[current_process].arrival_time;
+            }
+            current_time += execution_time;
+            processes[current_process].remaining_time -= execution_time;
+
+            insertLog(&head,processes[current_process].pid,current_time - execution_time,current_time);
+
+            if (processes[current_process].remaining_time == 0) {
+                remaining_processes--;
+                processes[current_process].turnaround_time = current_time - processes[current_process].arrival_time;
+            }
+        }
+
+        current_process = (current_process + 1) % n;
+    }
+
+    combineLogs(head);
+    return head;
+}
+
+
+struct log* sjf(struct Process processes[], int n) {
     int current_time = 0;
     int completed = 0;
     bool executed[n]; // Array to track if a process has been executed
+    struct log *head = NULL;
 
     // Initialize the executed array
     for (int i = 0; i < n; i++) {
@@ -102,13 +167,9 @@ void sjf(struct Process processes[], int n) {
 
             // Update turnaround, and waiting times
             processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
-            processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
+            processes[shortest_job_index].response_time = current_time - processes[shortest_job_index].arrival_time - execution_time;
 
-            // Print process details
-            printf("%d Start %d, Finish %d\n",
-                   processes[shortest_job_index].pid,
-                   current_time-execution_time,
-                   current_time);
+            insertLog(&head,processes[shortest_job_index].pid,current_time - execution_time,current_time);
 
             // Mark the process as executed
             executed[shortest_job_index] = true;
@@ -124,13 +185,15 @@ void sjf(struct Process processes[], int n) {
             current_time=soonest_job;
         }
     }
+
+    return head;
 }
 
 
-// Function to simulate the Shortest Jobtime remaining First scheduling algorithm
-void shortestRemainingTimeFirst(struct Process processes[], int n) {
+struct log* shortestRemainingTimeFirst(struct Process processes[], int n) {
     int current_time = 0;
     int completed = 0;
+    struct log* head = NULL;
 
     while (completed < n) {
         int shortest_job_index = -1;
@@ -148,25 +211,41 @@ void shortestRemainingTimeFirst(struct Process processes[], int n) {
         }
 
         if (!job_found) {
-            current_time++;
+            int temptime = INT_MAX;
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
+                    temptime = processes[i].arrival_time;
+                }
+            }
+            current_time = temptime;
         } else {
-            int execution_time = 1; // Execute one unit of time
+            int execution_time = INT_MAX; // Execute one unit of time
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].remaining_time > 0 && i != shortest_job_index){
+                    if(processes[i].arrival_time - current_time < execution_time){
+                        execution_time = processes[i].arrival_time - current_time;
+                    }
+                }
+            }
+            execution_time = (execution_time<processes[shortest_job_index].remaining_time)?execution_time:processes[shortest_job_index].remaining_time;
             current_time += execution_time;
             processes[shortest_job_index].remaining_time -= execution_time;
+            insertLog(&head,processes[shortest_job_index].pid,current_time - execution_time,current_time);
+            if(processes[shortest_job_index].response_time == -1){
+                processes[shortest_job_index].response_time = current_time - processes[shortest_job_index].arrival_time - execution_time;
+            }
 
             if (processes[shortest_job_index].remaining_time == 0) {
                 completed++;
                 processes[shortest_job_index].turnaround_time = current_time - processes[shortest_job_index].arrival_time;
-                processes[shortest_job_index].waiting_time = processes[shortest_job_index].turnaround_time - processes[shortest_job_index].job_time;
-
-                printf("%d Start %d, Finish %d\n",
-                       processes[shortest_job_index].pid,
-                       processes[shortest_job_index].arrival_time,
-                       current_time);
             }
         }
     }
+
+    combineLogs(head);
+    return head;
 }
+
 
 struct Queue {
     int front, rear, size;
@@ -208,15 +287,17 @@ struct Process dequeue(struct Queue* queue) {
 }
 
 // Function to perform MLFQ scheduling
-void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low) {
+struct log* mlfq(struct Process processes[], int n, int time_slice_high, int time_slice_med, int time_slice_low, int boost) {
     struct Queue* queue_high = createQueue(n);
     struct Queue* queue_med = createQueue(n);
     struct Queue* queue_low = createQueue(n);
+    struct log* head = NULL;
     int queued[n];
     for(int i=0;i<n;i++) queued[i]=0;
 
     int current_time = 0;
     int completed = 0;
+    int boosttrack = 0;
 
     while (completed < n) {
         for (int i = 0; i < n; i++) {
@@ -232,53 +313,112 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
         if (!isEmpty(queue_high)) {
             struct Process process = dequeue(queue_high);
             int execution_time = (process.remaining_time < time_slice_high) ? process.remaining_time : time_slice_high;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
+
+            if(process.response_time == -1){
+                process.response_time = 1;
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].response_time = current_time - processes[i].arrival_time - execution_time;
+                        break;
+                    }
+                }
+                process.response_time = current_time - process.arrival_time - execution_time;
+            }
 
             if (process.remaining_time == 0) {
                 completed++;
                 process.turnaround_time = current_time - process.arrival_time;
-                process.waiting_time = process.turnaround_time - process.job_time;
-
-                printf("%d Start %d Finish %d\n",
-                       process.pid, process.arrival_time, current_time);
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
             } else {
                 enqueue(queue_med, process);
             }
         } else if (!isEmpty(queue_med)) {
             struct Process process = dequeue(queue_med);
             int execution_time = (process.remaining_time < time_slice_med) ? process.remaining_time : time_slice_med;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
 
             if (process.remaining_time == 0) {
                 completed++;
                 process.turnaround_time = current_time - process.arrival_time;
-                process.waiting_time = process.turnaround_time - process.job_time;
-
-                printf("%d Start %d Finish %d\n",
-                       process.pid, process.arrival_time, current_time);
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
             } else {
                 enqueue(queue_low, process);
             }
         } else if (!isEmpty(queue_low)) {
             struct Process process = dequeue(queue_low);
             int execution_time = (process.remaining_time < time_slice_low) ? process.remaining_time : time_slice_low;
+            if(boosttrack + execution_time > boost){
+                execution_time = boost - boosttrack; 
+                boosttrack = 0;
+            }else{
+                boosttrack += execution_time;
+            }
             current_time += execution_time;
             process.remaining_time -= execution_time;
+
+            insertLog(&head,process.pid,current_time - execution_time,current_time);
 
             if (process.remaining_time == 0) {
                 completed++;
                 process.turnaround_time = current_time - process.arrival_time;
-                process.waiting_time = process.turnaround_time - process.job_time;
-
-                printf("%d Start %d Finish %d\n",
-                       process.pid, process.arrival_time, current_time);
+                for(int i=0;i<n;i++){
+                    if(strcmp(process.pid,processes[i].pid) == 0){
+                        processes[i].turnaround_time = current_time - processes[i].arrival_time;
+                        break;
+                    }
+                }
             } else {
                 enqueue(queue_low, process);
             }
         } else {
-            current_time++; // No process is ready to execute, so move time forward
+            int temptime = INT_MAX;
+            for(int i=0;i<n;i++){
+                if(processes[i].arrival_time > current_time && processes[i].arrival_time < temptime){
+                    temptime = processes[i].arrival_time;
+                }
+            }
+            boosttrack += temptime - current_time;
+            current_time = temptime; 
+            while(boosttrack >= boost) boosttrack -= boost;
+        }
+        if(boosttrack == 0){
+            while(!isEmpty(queue_med)){
+                struct Process process = dequeue(queue_med);
+                enqueue(queue_high,process);
+            }
+            while(!isEmpty(queue_low)){
+                struct Process process = dequeue(queue_low);
+                enqueue(queue_high,process);
+            }
         }
     }
 
@@ -288,15 +428,19 @@ void mlfq(struct Process processes[], int n, int time_slice_high, int time_slice
     free(queue_high);
     free(queue_med);
     free(queue_low);
+
+    combineLogs(head);
+    return head;
 }
 
 
 int main() {
     int n;  // Number of processes
     int time_slice; // Time slice for Round Robin
-    int time_slice_high, time_slice_med, time_slice_low; // time slices for MLFQ
+    int time_slice_high, time_slice_med, time_slice_low, boost; // time slices for MLFQ
     double meanInterArrivalTime;
     double meanJobDuration;
+    struct log* head = NULL;
 
     printf("Enter the number of processes: ");
     scanf("%d", &n);
@@ -306,57 +450,62 @@ int main() {
     // Set the seed for the random number generator
     srand(time(NULL));
 
-    printf("Enter the mean inter-arrival time (in microseconds): ");
+    printf("Enter the mean inter-arrival time : ");
     scanf("%lf", &meanInterArrivalTime);
 
-    printf("Enter the mean job duration (in microseconds): ");
+    printf("Enter the mean job duration : ");
     scanf("%lf", &meanJobDuration);
 
     processes[0].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime));
     processes[0].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
     processes[0].remaining_time = processes[0].job_time;
-    processes[0].pid = 1;
+    sprintf(processes[0].pid, "p%d", 1);
     for (int i = 1; i < n; i++) {
         processes[i].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime))+processes[i-1].arrival_time;
         processes[i].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].job_time;
-        processes[i].pid = i + 1;
+        sprintf(processes[i].pid, "p%d", i+1);
     }
-
-    printf("Enter time slice for Round Robin (in microseconds): ");
-    scanf("%d", &time_slice);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("----- Round Robin Scheduling -----\n");
-    roundRobin(clonedProcesses, n, time_slice);
+    printf("Enter time slice for Round Robin : ");
+    scanf("%d", &time_slice);
+    head = roundRobin(clonedProcesses, n, time_slice);
+    printLog(head);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- First Come First Serve Scheduling -----\n");
-    fcfs(clonedProcesses, n);
+    head = fcfs(clonedProcesses, n);
+    printLog(head);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Job First Scheduling -----\n");
-    sjf(clonedProcesses, n);
+    head = sjf(clonedProcesses, n);
+    printLog(head);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Remaining Time First Scheduling -----\n");
-    shortestRemainingTimeFirst(clonedProcesses, n);
-
-    printf("Enter time slice for high-priority queue (in microseconds): ");
-    scanf("%d", &time_slice_high);
-    printf("Enter time slice for medium-priority queue (in microseconds): ");
-    scanf("%d", &time_slice_med);
-    printf("Enter time slice for low-priority queue (in microseconds): ");
-    scanf("%d", &time_slice_low);
+    head = shortestRemainingTimeFirst(clonedProcesses, n);
+    printLog(head);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- MLFQ Scheduling -----\n");
-    mlfq(clonedProcesses, n, time_slice_high, time_slice_med, time_slice_low);
+    printf("Enter time slice for high-priority queue : ");
+    scanf("%d", &time_slice_high);
+    printf("Enter time slice for medium-priority queue : ");
+    scanf("%d", &time_slice_med);
+    printf("Enter time slice for low-priority queue : ");
+    scanf("%d", &time_slice_low);
+    printf("Enter boost time: ");
+    scanf("%d", &boost);
+    head = mlfq(clonedProcesses, n, time_slice_high, time_slice_med, time_slice_low, boost);
+    printLog(head);
 
     return 0;
 }
