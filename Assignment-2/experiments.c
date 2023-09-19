@@ -485,8 +485,8 @@ struct log* mlfq(struct Process processes[], int n, double time_slice_high, doub
 
 int main() {
     int n;  // Number of processes
-    int time_slice; // Time slice for Round Robin
-    int time_slice_high, time_slice_med, time_slice_low, boost; // time slices for MLFQ
+    double time_slice; // Time slice for Round Robin
+    double time_slice_high, time_slice_med, time_slice_low, boost; // time slices for MLFQ
     double meanInterArrivalTime;
     double meanJobDuration;
     struct log* head = NULL;
@@ -508,11 +508,13 @@ int main() {
     processes[0].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime));
     processes[0].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
     processes[0].remaining_time = processes[0].job_time;
+    processes[0].response_time = -1;
     sprintf(processes[0].pid, "p%d", 1);
     for (int i = 1; i < n; i++) {
         processes[i].arrival_time = ceil(generateExponentialRandom(1.0/meanInterArrivalTime))+processes[i-1].arrival_time;
         processes[i].job_time = ceil(generateExponentialRandom(1.0/meanJobDuration));
         processes[i].remaining_time = processes[i].job_time;
+        processes[i].response_time = -1;
         sprintf(processes[i].pid, "p%d", i+1);
     }
 
@@ -520,42 +522,47 @@ int main() {
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("----- Round Robin Scheduling -----\n");
     printf("Enter time slice for Round Robin : ");
-    scanf("%d", &time_slice);
+    scanf("%lf", &time_slice);
     head = roundRobin(clonedProcesses, n, time_slice);
     printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,n);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- First Come First Serve Scheduling -----\n");
     head = fcfs(clonedProcesses, n);
     printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,n);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Job First Scheduling -----\n");
     head = sjf(clonedProcesses, n);
     printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,n);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- shortest Remaining Time First Scheduling -----\n");
     head = shortestRemainingTimeFirst(clonedProcesses, n);
     printLog(head);
+    printAvgTurnaroundResponse(clonedProcesses,n);
 
     // Copy elements from the original processes array to the cloned array
     for (int i = 0; i < n; i++) clonedProcesses[i] = processes[i];
     printf("\n----- MLFQ Scheduling -----\n");
     printf("Enter time slice for high-priority queue : ");
-    scanf("%d", &time_slice_high);
+    scanf("%lf", &time_slice_high);
     printf("Enter time slice for medium-priority queue : ");
-    scanf("%d", &time_slice_med);
+    scanf("%lf", &time_slice_med);
     printf("Enter time slice for low-priority queue : ");
-    scanf("%d", &time_slice_low);
+    scanf("%lf", &time_slice_low);
     printf("Enter boost time: ");
-    scanf("%d", &boost);
+    scanf("%lf", &boost);
     head = mlfq(clonedProcesses, n, time_slice_high, time_slice_med, time_slice_low, boost);
     printLog(head);
-
+    printAvgTurnaroundResponse(clonedProcesses,n);
+    
     return 0;
 }
 

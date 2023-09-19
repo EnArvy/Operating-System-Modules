@@ -54,7 +54,7 @@ void combineLogs(struct log*head){
 }
 void printLog(struct log *head){
     while(head != NULL){
-        printf("%s %.3lf %.3lf ",head->pid,head->start,head->finish);
+        printf("%s %.2lf %.2lf ",head->pid,head->start,head->finish);
         head = head->next;
     }
     printf("\n");
@@ -65,7 +65,7 @@ void printAvgTurnaroundResponse(struct Process processes[], int n){
     for(int i=0;i<n;i++){
         sum += processes[i].turnaround_time;
     }
-    printf("%.3f ",(float)sum/n);
+    printf("%.2lf ",(float)sum/n);
     sum=0;
     // printf("\n");
     for(int i=0;i<n;i++){
@@ -73,7 +73,7 @@ void printAvgTurnaroundResponse(struct Process processes[], int n){
         // printf("%.3f ",processes[i].response_time);
     }
     // printf("\n");
-    printf("%.3f\n",(float)sum/n);
+    printf("%.2lf\n",(float)sum/n);
 }
 
 struct Queue {
