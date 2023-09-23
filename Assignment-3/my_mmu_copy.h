@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 // Include your Headers below
+#include <unistd.h>
 
 
 // You are not allowed to use the function malloc and calloc directly .
@@ -9,11 +10,13 @@
 struct header{
     size_t size;
 };
+
 // Function to allocate memory using mmap
 void* my_malloc(size_t size) {
     // Your implementation of my_malloc goes here
     if(size==0)return NULL;
     struct header* ptr=mmap(NULL,size+sizeof(struct header),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+    if(ptr==NULL)return NULL;
     ptr->size=size;
     return (void*)(ptr+1);
 }
@@ -21,10 +24,10 @@ void* my_malloc(size_t size) {
 // Function to allocate and initialize memory to zero using mmap
 void* my_calloc(size_t nelem, size_t size) {
     // Your implementation of my_calloc goes here
-    if(nelem==0||size==0)return NULL;
-    struct header* ptr=mmap(NULL,nelem*size+sizeof(struct header),PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
-    ptr->size=nelem*size;
-    return (void*)(ptr+1);
+    void* ptr = my_malloc(nelem*size);
+    if(ptr==NULL)return NULL;
+    memset(ptr,0,nelem*size);
+    return (void*)(ptr);
 }
 
 // Function to release memory allocated using my_malloc and my_calloc
