@@ -11,10 +11,6 @@ struct header{
     size_t size;
     struct header* next;
 };
-struct allocatedheader{
-    size_t size;
-    int magic;
-};
 static struct header* freelist=NULL;
 void init(){
     if(freelist==NULL){
@@ -60,30 +56,28 @@ void* my_malloc(size_t size) {
     struct header* current = freelist;
 
     while (current) {
-        if (current->size + sizeof(struct header) >= size + sizeof(struct allocatedheader)) {
-            if (current->size+ sizeof(struct header) > size + sizeof(struct allocatedheader)) {
+        if (current->size >= size + sizeof(struct header)) {
+            if (current->size > size + sizeof(struct header)) {
                 // Split the block if it's larger than needed.
-                struct header* new_block = (struct header*)((char*)current + size + sizeof(struct allocatedheader));
-                new_block->size = current->size - size + sizeof(struct header) - sizeof(struct allocatedheader);
+                struct header* new_block = (struct header*)((char*)current + size + sizeof(struct header));
+                new_block->size = current->size - size;
                 new_block->next = current->next;
-                struct allocatedheader* allocatedmem = (struct allocatedheader*)current;
-                allocatedmem->size = size;
-                allocatedmem->magic = 123456;
+                current->size = size;
+                current->next = (struct header*)123456;
                 if (prev)
                     prev->next = new_block;
                 else
                     freelist = new_block;
-                return (void*)(allocatedmem + 1);
+                return (void*)(current + 1);
             }
             else{
                 if (prev)
                     prev->next = current->next;
                 else
                     freelist = current->next;
-                struct allocatedheader* allocatedmem = (struct allocatedheader*)current;
-                allocatedmem->magic = 123456;
-                allocatedmem->size = size;
-                return (void*)(allocatedmem + 1);
+                current->next = (struct header*)123456;
+                current->size = size;
+                return (void*)(current + 1);
             }
         }
         prev = current;
@@ -91,13 +85,13 @@ void* my_malloc(size_t size) {
     }
 
     // If no suitable block is found, request more memory.
-    struct allocatedheader* new_block = sbrk(size+sizeof(struct allocatedheader));
+    struct header* new_block = sbrk(size+sizeof(struct header));
     if (new_block == (void*)-1) {
         errno = ENOMEM;
         return NULL; // Out of memory
     }
     new_block->size = size;
-    new_block->magic = 123456;
+    new_block->next = (struct header*)123456;
     return (void*)(new_block + 1);
 }
 
@@ -119,11 +113,11 @@ void* my_calloc(size_t nelem, size_t size) {
 void my_free(void* ptr) {
     // Your implementation of my_free goes here
     if(ptr==NULL)return;
-    struct allocatedheader* block = (struct allocatedheader*)ptr - 1;
-    if(block->magic!=123456) return;
+    struct header* block = (struct header*)ptr - 1;
+    if(block->next!=(struct header*)123456) return;
     size_t size = block->size;
     struct header* freemem = (struct header*)block;
     freemem->next = freelist;
     freelist = freemem;
-    freemem->size = size - sizeof(struct header) + sizeof(struct allocatedheader);
+    freemem->size = size;
 }

@@ -101,7 +101,9 @@ void test_my_calloc() {
             printf("%d ", int_array[i]);
         }
         printf("\n");
+        info();
         my_free(int_array);
+        printf("Freed\n");
     } else {
         printf("my_calloc failed to allocate memory.\n");
     }
@@ -120,6 +122,14 @@ int main() {
     printf("\nTesting my_calloc:\n");
     info();
     test_my_calloc();
+    info();
+
+    int *str = (int *)my_malloc(16);
+    info();
+    // printf("Allocated a string with my_malloc: %s\n", str);
+    // strcpy(str, "Hello");
+    // printf("Allocated a string with my_malloc: %s\n", str);
+    my_free(str);
     info();
 
     return 0;
