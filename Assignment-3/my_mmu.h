@@ -22,14 +22,14 @@ void init(){
 //Function to show state of freelist
 void info(){
     struct header* current = freelist;
-    int block_number = 1;
+    int blocknumber = 1;
 
     fprintf(stderr,"------------------------------------\n");
     fprintf(stderr,"Free List Contents:\n");
     while (current) {
-        fprintf(stderr,"Block %d: Address=%p, Size=%zu\n", block_number, current, current->size);
+        fprintf(stderr,"Block %d: Address=%p, Size=%zu\n", blocknumber, current, current->size);
         current = current->next;
-        block_number++;
+        blocknumber++;
     }
     fprintf(stderr,"------------------------------------\n");
 }
@@ -48,7 +48,7 @@ int checkoverflow(int m, int n){
 
 // Own implemetnation of malloc
 void* my_malloc(size_t size) {
-    // Your implementation of my_malloc goes here
+
     if(size==0)return NULL;
     init();
     
@@ -58,12 +58,12 @@ void* my_malloc(size_t size) {
     while (current) {
         if (current->size >= size + sizeof(struct header)) {
             if (current->size > size + sizeof(struct header)) {
-                // Split the block if it's larger than needed.
+
                 struct header* new_block = (struct header*)((char*)current + size + sizeof(struct header));
-                new_block->size = current->size - size;
+                new_block->size = current->size - size - sizeof(struct header);
                 new_block->next = current->next;
                 current->size = size;
-                current->next = (struct header*)123456;
+                current->next = (struct header*)123456; //magic
                 if (prev)
                     prev->next = new_block;
                 else
@@ -75,7 +75,7 @@ void* my_malloc(size_t size) {
                     prev->next = current->next;
                 else
                     freelist = current->next;
-                current->next = (struct header*)123456;
+                current->next = (struct header*)123456; //magic
                 current->size = size;
                 return (void*)(current + 1);
             }
@@ -91,13 +91,13 @@ void* my_malloc(size_t size) {
         return NULL; // Out of memory
     }
     new_block->size = size;
-    new_block->next = (struct header*)123456;
+    new_block->next = (struct header*)123456; //magic
     return (void*)(new_block + 1);
 }
 
 // Own implementation of calloc
 void* my_calloc(size_t nelem, size_t size) {
-    // Your implementation of my_calloc goes here
+
     if(checkoverflow(nelem,size)==1){
         errno=EOVERFLOW;
         return NULL;
@@ -111,13 +111,11 @@ void* my_calloc(size_t nelem, size_t size) {
 
 // Own implementation of free
 void my_free(void* ptr) {
-    // Your implementation of my_free goes here
+
     if(ptr==NULL)return;
     struct header* block = (struct header*)ptr - 1;
     if(block->next!=(struct header*)123456) return;
-    size_t size = block->size;
-    struct header* freemem = (struct header*)block;
-    freemem->next = freelist;
-    freelist = freemem;
-    freemem->size = size;
+    block->next = freelist;
+    freelist = block;
+    
 }
