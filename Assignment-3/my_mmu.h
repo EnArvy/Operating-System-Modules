@@ -1,12 +1,10 @@
+#include <unistd.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-// Include your Headers below
-#include <unistd.h>
-#include <errno.h>
 
 
-// You are not allowed to use the function malloc and calloc directly .
 
 //Initialize freelist
 struct header{
@@ -21,6 +19,22 @@ void init(){
         freelist->next=NULL;
     }
 }
+//Function to show state of freelist
+void info(){
+    struct header* current = freelist;
+    int block_number = 1;
+
+    fprintf(stderr,"------------------------------------\n");
+    fprintf(stderr,"Free List Contents:\n");
+    while (current) {
+        fprintf(stderr,"Block %d: Address=%p, Size=%zu\n", block_number, current, current->size);
+        current = current->next;
+        block_number++;
+    }
+    fprintf(stderr,"------------------------------------\n");
+}
+
+
 
 //Function to check int overflow on multiplication
 int checkoverflow(int m, int n){
@@ -30,7 +44,9 @@ int checkoverflow(int m, int n){
     else return 1;
 }
 
-// Function to allocate memory using mmap
+
+
+// Own implemetnation of malloc
 void* my_malloc(size_t size) {
     // Your implementation of my_malloc goes here
     if(size==0)return NULL;
@@ -79,7 +95,7 @@ void* my_malloc(size_t size) {
     return (void*)(new_block + 1);
 }
 
-// Function to allocate and initialize memory to zero using mmap
+// Own implementation of calloc
 void* my_calloc(size_t nelem, size_t size) {
     // Your implementation of my_calloc goes here
     if(checkoverflow(nelem,size)==1){
@@ -93,25 +109,11 @@ void* my_calloc(size_t nelem, size_t size) {
     return ptr;
 }
 
-// Function to release memory allocated using my_malloc and my_calloc
+// Own implementation of free
 void my_free(void* ptr) {
     // Your implementation of my_free goes here
     if(ptr==NULL)return;
     struct header* block = (struct header*)ptr - 1;
     block->next = freelist;
     freelist = block;
-}
-
-void info(){
-    struct header* current = freelist;
-    int block_number = 1;
-
-    fprintf(stderr,"------------------------------------\n");
-    fprintf(stderr,"Free List Contents:\n");
-    while (current) {
-        fprintf(stderr,"Block %d: Address=%p, Size=%zu\n", block_number, current, current->size);
-        current = current->next;
-        block_number++;
-    }
-    fprintf(stderr,"------------------------------------\n");
 }
