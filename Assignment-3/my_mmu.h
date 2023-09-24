@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 // Include your Headers below
 #include <unistd.h>
+#include <errno.h>
 
 
 // You are not allowed to use the function malloc and calloc directly .
@@ -19,6 +20,14 @@ void init(){
         freelist->size=4096-sizeof(struct header);
         freelist->next=NULL;
     }
+}
+
+//Function to check int overflow on multiplication
+int checkoverflow(int m, int n){
+    if(m==0)return 0;
+    int p=m*n;
+    if(p/n==m)return 0;
+    else return 1;
 }
 
 // Function to allocate memory using mmap
@@ -62,6 +71,7 @@ void* my_malloc(size_t size) {
     // If no suitable block is found, request more memory.
     struct header* new_block = sbrk(size);
     if (new_block == (void*)-1) {
+        errno = ENOMEM;
         return NULL; // Out of memory
     }
     new_block->size = size;
@@ -72,6 +82,10 @@ void* my_malloc(size_t size) {
 // Function to allocate and initialize memory to zero using mmap
 void* my_calloc(size_t nelem, size_t size) {
     // Your implementation of my_calloc goes here
+    if(checkoverflow(nelem,size)==1){
+        errno=EOVERFLOW;
+        return NULL;
+    }
     size_t finalsize = nelem * size;
     void* ptr = my_malloc(finalsize);
     if(ptr==NULL)return NULL;
@@ -83,7 +97,6 @@ void* my_calloc(size_t nelem, size_t size) {
 void my_free(void* ptr) {
     // Your implementation of my_free goes here
     if(ptr==NULL)return;
-
     struct header* block = (struct header*)ptr - 1;
     block->next = freelist;
     freelist = block;
