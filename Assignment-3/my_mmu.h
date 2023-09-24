@@ -55,6 +55,7 @@ void* my_malloc(size_t size) {
     struct header* prev = NULL;
     struct header* current = freelist;
 
+// First Fit
     while (current) {
         if (current->size >= size + sizeof(struct header)) {
             if (current->size > size + sizeof(struct header)) {
@@ -107,6 +108,7 @@ void* my_calloc(size_t nelem, size_t size) {
     if(ptr==NULL)return NULL;
     memset(ptr, 0, finalsize);
     return ptr;
+
 }
 
 // Own implementation of free
@@ -117,5 +119,5 @@ void my_free(void* ptr) {
     if(block->next!=(struct header*)123456) return;
     block->next = freelist;
     freelist = block;
-    
+
 }
