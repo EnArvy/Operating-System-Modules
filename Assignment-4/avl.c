@@ -16,6 +16,7 @@ int balance(struct node*);
 struct node* leftRotate(struct node*);
 struct node* rightRotate(struct node*);
 void inorder(struct node*);
+void preorder(struct node*);
 struct node* minNode(struct node*);
 struct node* delete(struct node*,int);
 struct node* insert(struct node*,int);
@@ -32,7 +33,6 @@ int main(){
         char command[30];
 		fgets(command,30,stdin);
         if(startsWith("insert",command)){
-// printf("n");
             sscanf(command,"insert %d",&x);
             root=insert(root,x);
         }
@@ -52,7 +52,7 @@ int main(){
             break;
         }
     }
-    inorder(root);
+    preorder(root);
     printf("\n");
     return 0;
 }
@@ -183,4 +183,11 @@ void contains(struct node* root,int data){
 int startsWith(const char *a, const char *b){
    if(strncmp(a, b, strlen(a)) == 0) return 1;
    return 0;
+}
+void preorder(struct node* root){
+    if(root!=NULL){
+        printf("%d ",root->data);
+        preorder(root->left);
+        preorder(root->right);
+    }
 }
