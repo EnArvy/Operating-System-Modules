@@ -2,58 +2,94 @@
 #include<stdlib.h>
 #include<math.h>
 #include<string.h>
+#include<pthread.h>
 
 struct node{
     int data;
     struct node *left;
     struct node *right;
     int height;
+    pthread_mutex_t lock;
+};
+struct tree{
+    struct node *root;
+    pthread_mutex_t lock;
+};
+struct tree Tree;
+struct threadArgs{
+    int data;
+    int choice;
 };
 
 struct node* newNode(int);
+int startsWith(const char *, const char *);
 int height(struct node*);
 int balance(struct node*);
 struct node* leftRotate(struct node*);
 struct node* rightRotate(struct node*);
-void inorder(struct node*);
 void preorder(struct node*);
 struct node* minNode(struct node*);
+int max(int, int);
+
+void contains(struct node*,int);
 struct node* delete(struct node*,int);
 struct node* insert(struct node*,int);
-int max(int, int);
-void contains(struct node*,int);
-int startsWith(const char *, const char *);
+void inorder(struct node*);
+
+void* mythread(void* arg){
+    struct threadArgs* args = (struct threadArgs*)arg;
+    if(args->choice==1){
+        if(Tree.root==NULL) pthread_mutex_lock(&Tree.lock);
+        Tree.root = insert(Tree.root,args->data);
+        pthread_mutex_unlock(&Tree.lock);
+    }
+    else if(args->choice==2) Tree.root = delete(Tree.root,args->data);
+    else if(args->choice==3){
+        inorder(Tree.root);
+        printf("\n");
+    }
+    else if(args->choice==4) contains(Tree.root,args->data);
+    free(args);
+    return NULL;
+}
 
 
 int main(){
-    struct node *root=NULL;
-    int x;
+    char command[30];
+    pthread_t p;
+    Tree.root = NULL;
+    pthread_mutex_init(&Tree.lock,NULL);
 
     while(1){
-        char command[30];
 		fgets(command,30,stdin);
         if(startsWith("insert",command)){
-            sscanf(command,"insert %d",&x);
-            root=insert(root,x);
+            struct threadArgs *args = malloc(sizeof(struct threadArgs));
+            sscanf(command,"insert %d",&args->data);
+            args->choice = 1;
+            pthread_create(&p,NULL,mythread,args);
         }
         else if(startsWith("delete",command)){
-            sscanf(command,"delete %d",&x);
-            root=delete(root,x);
+            struct threadArgs *args = malloc(sizeof(struct threadArgs));
+            sscanf(command,"delete %d",&args->data);
+            args->choice = 2;
+            pthread_create(&p,NULL,mythread,args);
         }
         else if(startsWith("in order",command)){
-            inorder(root);
-            printf("\n");
+            struct threadArgs *args = malloc(sizeof(struct threadArgs));
+            args->choice = 3;
+            pthread_create(&p,NULL,mythread,args);
         }
         else if(startsWith("contains",command)){
-            sscanf(command,"contains %d",&x);
-            contains(root,x);
+            struct threadArgs *args = malloc(sizeof(struct threadArgs));
+            sscanf(command,"contains %d",&args->data);
+            args->choice = 4;
+            pthread_create(&p,NULL,mythread,args);
         }
-        else{
-            break;
-        }
+        else break;
     }
-    preorder(root);
+    preorder(Tree.root);
     printf("\n");
+    pthread_exit(NULL);
     return 0;
 }
 
@@ -63,6 +99,7 @@ struct node* newNode(int data){
 	temp->left = NULL;
 	temp->right = NULL;
 	temp->height = 1;
+    pthread_mutex_init(&temp->lock,NULL);
 	return temp;
 }
 int height(struct node* node){
@@ -96,8 +133,10 @@ struct node* rightRotate(struct node* z){
 }
 void inorder(struct node* root){
     if(root!=NULL){
+        pthread_mutex_lock(&root->lock);
         inorder(root->left);
         printf("%d ",root->data);
+        pthread_mutex_unlock(&root->lock);
         inorder(root->right);
     }
 }
@@ -146,26 +185,42 @@ struct node* delete(struct node* root,int data){
 	return root;
 }
 struct node* insert(struct node* root,int data){
-
     if(root==NULL) return newNode(data);
+    pthread_mutex_lock(&root->lock);
 	if(data < root->data) root->left = insert(root->left,data);
 	else if(data > root->data) root->right = insert(root->right,data);
-	else return root;
+	else{
+        pthread_mutex_unlock(&root->lock);
+        return root;
+    }
 
 	root->height = 1+max(height(root->left),height(root->right));
 
 	int bal = balance(root);
 
-	if(bal > 1 && data < root->left->data) return rightRotate(root);
-	if(bal < -1 && data > root->right->data) return leftRotate(root);
+	if(bal > 1 && data < root->left->data){
+        struct node* temp = rightRotate(root);
+        pthread_mutex_unlock(&root->lock);
+        return temp;
+    }
+	if(bal < -1 && data > root->right->data){
+        struct node* temp = leftRotate(root);
+        pthread_mutex_unlock(&root->lock);
+        return temp;
+    }
 	if(bal > 1 && data > root->left->data){
 		root->left = leftRotate(root->left);
-		return rightRotate(root);
+		struct node* temp = rightRotate(root);
+        pthread_mutex_unlock(&root->lock);
+        return temp;
 	}
 	if(bal < -1 && data < root->right->data){
 		root->right = rightRotate(root->right);
-		return leftRotate(root);
+		struct node* temp = leftRotate(root);
+        pthread_mutex_unlock(&root->lock);
+        return temp;
 	}
+    pthread_mutex_unlock(&root->lock);
 	return root;
 }
 void contains(struct node* root,int data){
@@ -173,12 +228,17 @@ void contains(struct node* root,int data){
         printf("no\n");
         return;
     }
+    // pthread_mutex_lock(&root->lock);
     if(root->data==data){
         printf("yes\n");
+        // pthread_mutex_unlock(&root->lock);
         return;
     }
-    if(data<root->data) contains(root->left,data);
-    else contains(root->right,data);
+    struct node* child;
+    if(data<root->data) child = root->left;
+    else child = root->right;
+    // pthread_mutex_unlock(&root->lock);
+    contains(child,data);
 }
 int startsWith(const char *a, const char *b){
    if(strncmp(a, b, strlen(a)) == 0) return 1;
@@ -190,4 +250,4 @@ void preorder(struct node* root){
         preorder(root->left);
         preorder(root->right);
     }
-}
+}   
