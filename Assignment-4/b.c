@@ -117,20 +117,24 @@ int max(int a, int b){
 }
 struct node* leftRotate(struct node* z){
     struct node* y = z->right;
+    pthread_mutex_lock(&y->lock);//write
     struct node* t2 = y->left;
     y->left = z;
     z->right = t2;
     z->height = 1+max(height(z->left),height(z->right));
     y->height = 1+max(height(y->left),height(y->right));
+    pthread_mutex_unlock(&y->lock);//write
     return y;
 }
 struct node* rightRotate(struct node* z){
     struct node* y = z->left;
+    pthread_mutex_lock(&y->lock);//write
     struct node* t3 = y->right;
     y->right = z;
     z->left = t3;
     z->height = 1+max(height(z->left),height(z->right));
     y->height = 1+max(height(y->left),height(y->right));
+    pthread_mutex_unlock(&y->lock);//write
     return y;
 }
 struct node* minNode(struct node* node){
@@ -151,17 +155,17 @@ void preorder(struct node* root){
 
 void inorder(struct node* root){
     if(root!=NULL){
-        pthread_mutex_lock(&root->lock);
+        pthread_mutex_lock(&root->lock);//read
         inorder(root->left);
         printf("%d ",root->data);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//read
         inorder(root->right);
     }
 }
 struct node* delete(struct node* root,int data){
     if(root==NULL) return root;
 
-    pthread_mutex_lock(&root->lock);
+    pthread_mutex_lock(&root->lock);//read
     struct node* child;
     int left=0;
     if(data<root->data){
@@ -172,6 +176,8 @@ struct node* delete(struct node* root,int data){
         child = root->right;
     }
     else{
+        pthread_mutex_unlock(&root->lock);//read
+        pthread_mutex_lock(&root->lock);//write
         if(root->left==NULL || root->right==NULL){
             struct node* temp = root->left?root->left:root->right;
             if(temp==NULL){
@@ -185,12 +191,13 @@ struct node* delete(struct node* root,int data){
 		else{
 			struct node* temp = minNode(root->right);
 			root->data = temp->data;
+            pthread_mutex_unlock(&root->lock);//write
 			root->right = delete(root->right,temp->data);
 		}
     }
-    pthread_mutex_unlock(&root->lock);
+    pthread_mutex_unlock(&root->lock);//read
     struct node* temp = delete(child,data);
-    pthread_mutex_lock(&root->lock);
+    pthread_mutex_lock(&root->lock);//write
     if(left==1) root->left = temp;
     else root->right = temp;
     if(root==NULL) return root;
@@ -198,33 +205,33 @@ struct node* delete(struct node* root,int data){
     int bal = balance(root);
     if(bal > 1 && balance(root->left) >=0){
         struct node* temp = rightRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
     }
 	if(bal < -1 && balance(root->right) <=0){
         struct node* temp = leftRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
     }
 	if(bal > 1 && balance(root->left) < 0){
 		root->left = leftRotate(root->left);
 		struct node*temp = rightRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
 	}
 	if(bal < -1 && balance(root->right) > 0){
 		root->right = rightRotate(root->right);
 		struct node* temp = leftRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
 	}
-    pthread_mutex_unlock(&root->lock);
+    pthread_mutex_unlock(&root->lock);//write
 	return root;
 }
 struct node* insert(struct node* root,int data){
     if(root==NULL) return newNode(data);
 
-    pthread_mutex_lock(&root->lock);
+    pthread_mutex_lock(&root->lock);//write
     struct node* child;
     int left=0;
     if(data<root->data){
@@ -233,12 +240,12 @@ struct node* insert(struct node* root,int data){
     }
     else if(data>root->data) child = root->right;
 	else{
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return root;
     }
-    pthread_mutex_unlock(&root->lock);
+    pthread_mutex_unlock(&root->lock);//write
     child = insert(child,data);
-    pthread_mutex_lock(&root->lock);
+    pthread_mutex_lock(&root->lock);//write
     if(left==1) root->left = child;
     else root->right = child;
 
@@ -248,27 +255,27 @@ struct node* insert(struct node* root,int data){
 
 	if(bal > 1 && data < root->left->data){
         struct node* temp = rightRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
     }
 	if(bal < -1 && data > root->right->data){
         struct node* temp = leftRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
     }
 	if(bal > 1 && data > root->left->data){
 		root->left = leftRotate(root->left);
 		struct node* temp = rightRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
 	}
 	if(bal < -1 && data < root->right->data){
 		root->right = rightRotate(root->right);
 		struct node* temp = leftRotate(root);
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//write
         return temp;
 	}
-    pthread_mutex_unlock(&root->lock);
+    pthread_mutex_unlock(&root->lock);//write
 	return root;
 }
 void contains(struct node* root,int data){
@@ -276,15 +283,15 @@ void contains(struct node* root,int data){
         printf("no\n");
         return;
     }
-    pthread_mutex_lock(&root->lock);
+    pthread_mutex_lock(&root->lock);//read
     if(root->data==data){
         printf("yes\n");
-        pthread_mutex_unlock(&root->lock);
+        pthread_mutex_unlock(&root->lock);//read
         return;
     }
     struct node* child;
     if(data<root->data) child = root->left;
     else child = root->right;
-    pthread_mutex_unlock(&root->lock);
+    pthread_mutex_unlock(&root->lock);//read
     contains(child,data);
 } 
