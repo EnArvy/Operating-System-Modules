@@ -56,7 +56,6 @@ void* mythread(void* arg){
     }
     else if(args->choice==3){
         startReading(&Tree);
-        fflush(stdout);
         char* result = malloc(sizeof(char)*4096);
         strcpy(result,"");
         inorder(Tree.root,result);
@@ -75,8 +74,7 @@ struct queuenode{
     pthread_t id;
     struct queuenode* next;
 };
-struct queuenode* queue;
-void enqueue(pthread_t id){
+void enqueue(pthread_t id, struct queuenode* queue){
     struct queuenode* temp = malloc(sizeof(struct queuenode));
     temp->id = id;
     temp->next = queue;
@@ -92,7 +90,9 @@ int main(){
     sem_init(&Tree.readex,0,1);
     sem_init(&Tree.writex,0,1);
     Tree.readers = Tree.writers = 0;
+    struct queuenode* queue,*final;
     queue = NULL;
+    final = NULL;
 
     while(1){
 		fgets(command,30,stdin);
@@ -100,35 +100,43 @@ int main(){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"insert %d",&args->data);
             args->choice = 1;
-            enqueue(p);
+            enqueue(p,queue);
+            enqueue(p,final);
             pthread_create(&p,NULL,mythread,args);
         }
         else if(startsWith("delete",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"delete %d",&args->data);
             args->choice = 2;
-            while(queue!=NULL){
+            while(queue->next!=NULL){
                 pthread_join(queue->id,NULL);
                 queue = queue->next;
             }
+            fflush(stdout);
             pthread_create(&p,NULL,mythread,args);
+            enqueue(p,final);
         }
         else if(startsWith("in order",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             args->choice = 3;
             pthread_create(&p,NULL,mythread,args);
+            enqueue(p,final);
         }
         else if(startsWith("contains",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"contains %d",&args->data);
             args->choice = 4;
             pthread_create(&p,NULL,mythread,args);
+            enqueue(p,final);
         }
         else break;
     }
+    while(final!=NULL){
+        pthread_join(final->id,NULL);
+        final = final->next;
+    }
     preorder(Tree.root);
     printf("\n");
-    pthread_exit(NULL);
     return 0;
 }
 
