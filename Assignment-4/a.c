@@ -69,7 +69,14 @@ void* mythread(void *arg){
     }
     else{
         if(args->choice==2){
-            char* input = readFile(findNode(args->data));
+            // char* input = readFile(findNode(args->data));
+            FILE *f = fopen(args->data, "rb");
+            fseek(f, 0, SEEK_END);
+            long fsize = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            char *input = malloc(fsize + 1);
+            fread(input, fsize, 1, f);
+            fclose(f);
             writeFile(args->Status,input);
         }
         else{
