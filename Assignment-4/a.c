@@ -188,6 +188,7 @@ void finishWriting(struct status* Status){
 
     pthread_mutex_unlock(&Status->Lock);
 }
+//Following two functions ensure bounded waiting for writers
 int shouldReaderWait(struct status* Status){
     return Status->writingWriters>0 || Status->waitingWriters>0;
 }
