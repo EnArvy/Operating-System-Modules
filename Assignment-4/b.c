@@ -13,9 +13,12 @@ struct node{
 };
 struct tree{
     struct node *root;
-    pthread_mutex_t lock;
-    int readers,writers;
-    sem_t readex,writex;
+    int readingRreaders;
+    int waitingReaders;
+    int writingWriters;
+    int waitingWriters;
+    pthread_mutex_t Lock;
+    pthread_cond_t readStart,writeStart;
 };
 struct tree Tree;
 struct threadArgs{
@@ -36,6 +39,8 @@ void startReading(struct tree*);
 void finishReading(struct tree*);
 void startWriting(struct tree*);
 void finishWriting(struct tree*);
+int shouldReaderWait(struct tree*);
+int shouldWriterWait(struct tree*);
 
 void contains(struct node*,int);
 struct node* delete(struct node*,int);
@@ -70,29 +75,19 @@ void* mythread(void* arg){
     free(args);
     return NULL;
 }
-struct queuenode{
-    pthread_t id;
-    struct queuenode* next;
-};
-void enqueue(pthread_t id, struct queuenode* queue){
-    struct queuenode* temp = malloc(sizeof(struct queuenode));
-    temp->id = id;
-    temp->next = queue;
-    queue = temp;
-}
+pthread_t inserts[300],deletes[300];
+int insertcs,deletecs,clearcs;
 
 
 int main(){
     char command[30];
     pthread_t p;
     Tree.root = NULL;
-    pthread_mutex_init(&Tree.lock,NULL);
-    sem_init(&Tree.readex,0,1);
-    sem_init(&Tree.writex,0,1);
-    Tree.readers = Tree.writers = 0;
-    struct queuenode* queue,*final;
-    queue = NULL;
-    final = NULL;
+    Tree.readingRreaders = Tree.waitingReaders = Tree.writingWriters = Tree.waitingWriters = 0;
+    pthread_mutex_init(&Tree.Lock,NULL);
+    pthread_cond_init(&Tree.readStart,NULL);
+    pthread_cond_init(&Tree.writeStart,NULL);
+    insertcs=deletecs=clearcs=0;
 
     while(1){
 		fgets(command,30,stdin);
@@ -100,40 +95,41 @@ int main(){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"insert %d",&args->data);
             args->choice = 1;
-            enqueue(p,queue);
-            enqueue(p,final);
             pthread_create(&p,NULL,mythread,args);
+            inserts[insertcs++] = p;
         }
         else if(startsWith("delete",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"delete %d",&args->data);
             args->choice = 2;
-            while(queue->next!=NULL){
-                pthread_join(queue->id,NULL);
-                queue = queue->next;
+            for(;clearcs<insertcs;clearcs++){
+                pthread_join(inserts[clearcs],NULL);
             }
-            fflush(stdout);
             pthread_create(&p,NULL,mythread,args);
-            enqueue(p,final);
+            deletes[deletecs++] = p;
         }
         else if(startsWith("in order",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             args->choice = 3;
             pthread_create(&p,NULL,mythread,args);
-            enqueue(p,final);
+            deletes[deletecs++] = p;
         }
         else if(startsWith("contains",command)){
             struct threadArgs *args = malloc(sizeof(struct threadArgs));
             sscanf(command,"contains %d",&args->data);
             args->choice = 4;
             pthread_create(&p,NULL,mythread,args);
-            enqueue(p,final);
+            deletes[deletecs++] = p;
         }
-        else break;
+        else{
+            break;
+        }
     }
-    while(final!=NULL){
-        pthread_join(final->id,NULL);
-        final = final->next;
+    for(;clearcs<insertcs&&clearcs<300;clearcs++){
+        pthread_join(inserts[clearcs],NULL);
+    }
+    for(int i=0;i<deletecs&&clearcs<300;i++){
+        pthread_join(deletes[i],NULL);
     }
     preorder(Tree.root);
     printf("\n");
@@ -342,36 +338,46 @@ void contains(struct node* root,int data){
 } 
 
 void startReading(struct tree* Tree){
-    pthread_mutex_lock(&Tree->lock);
-    if(Tree->writers>0){
-        pthread_mutex_unlock(&Tree->lock);
-        sem_wait(&Tree->readex);
-        pthread_mutex_lock(&Tree->lock);
-    }
-    Tree->readers++;
-    pthread_mutex_unlock(&Tree->lock);
+    pthread_mutex_lock(&Tree->Lock);
+
+    Tree->waitingReaders++;
+    while(shouldReaderWait(Tree))
+        pthread_cond_wait(&Tree->readStart,&Tree->Lock);
+    Tree->waitingReaders--;
+    Tree->readingRreaders++;
+
+    pthread_mutex_unlock(&Tree->Lock);
 }
 void finishReading(struct tree* Tree){
-    pthread_mutex_lock(&Tree->lock);
-    Tree->readers--;
-    if(Tree->readers==0 && Tree->writers>0) sem_post(&Tree->writex);
-    pthread_mutex_unlock(&Tree->lock);
+    pthread_mutex_lock(&Tree->Lock);
+
+    Tree->readingRreaders--;
+    if(Tree->readingRreaders==0 && Tree->waitingWriters>0) pthread_cond_signal(&Tree->writeStart);
+
+    pthread_mutex_unlock(&Tree->Lock);
 }
 void startWriting(struct tree* Tree){
-    pthread_mutex_lock(&Tree->lock);
-    if(Tree->readers>0 || Tree->writers>0){
-        Tree->writers++;
-        pthread_mutex_unlock(&Tree->lock);
-        sem_wait(&Tree->writex);
-        pthread_mutex_lock(&Tree->lock);
-    }
-    Tree->writers++;
-    pthread_mutex_unlock(&Tree->lock);
+    pthread_mutex_lock(&Tree->Lock);
+    Tree->waitingWriters++;
+    while(shouldWriterWait(Tree))
+        pthread_cond_wait(&Tree->writeStart,&Tree->Lock);
+    Tree->waitingWriters--;
+    Tree->writingWriters++;
+    pthread_mutex_unlock(&Tree->Lock);
 }
 void finishWriting(struct tree* Tree){
-    pthread_mutex_lock(&Tree->lock);
-    Tree->writers--;
-    if(Tree->readers>0) sem_post(&Tree->readex);
-    else if(Tree->writers>0) sem_post(&Tree->writex);
-    pthread_mutex_unlock(&Tree->lock);
+    pthread_mutex_lock(&Tree->Lock);
+
+    Tree->writingWriters--;
+    if(Tree->waitingWriters>0) pthread_cond_signal(&Tree->writeStart);
+    else pthread_cond_broadcast(&Tree->readStart);
+
+    pthread_mutex_unlock(&Tree->Lock);
+}
+//Following two functions ensure bounded waiting for writers
+int shouldReaderWait(struct tree* Tree){
+    return Tree->writingWriters>0 || Tree->waitingWriters>0;
+}
+int shouldWriterWait(struct tree* Tree){
+    return Tree->writingWriters>0 || Tree->readingRreaders>0;
 }
