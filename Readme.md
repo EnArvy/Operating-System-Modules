@@ -1,0 +1,1 @@
+This repo contains various Operating System Modules such as a shell, process scheduler, memory management module, reader writer problem and filesearch. These are all made for Unix systems.
